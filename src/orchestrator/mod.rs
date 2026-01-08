@@ -273,9 +273,17 @@ impl Orchestrator {
     }
 
     pub async fn remove(&mut self, id: &str, force: bool) -> Result<()> {
+        // First check the status file to get latest status
+        self.check_status(id)?;
+
         let agent = self.get_agent(id)?;
 
-        if agent.status == AgentStatus::Running && !force {
+        // Check both the status AND if tmux window actually exists
+        // Agent is only truly running if status says Running AND window exists
+        let window_exists = self.tmux.window_exists(&agent.tmux_window);
+        let is_running = agent.status == AgentStatus::Running && window_exists;
+
+        if is_running && !force {
             return Err(Error::AgentStillRunning(id.to_string()));
         }
 
