@@ -8,9 +8,9 @@ use crate::error::{Error, Result};
 use crate::git::WorktreeManager;
 use crate::tmux::TmuxManager;
 use clap::ValueEnum;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-const TMUX_SESSION_NAME: &str = "wta";
+const TMUX_SESSION_PREFIX: &str = "wta";
 const WORKTREES_DIR: &str = ".worktrees";
 const STATE_DIR: &str = ".worktree-agents";
 
@@ -50,6 +50,7 @@ pub struct Orchestrator {
     repo_root: PathBuf,
     worktree_manager: WorktreeManager,
     tmux: TmuxManager,
+    tmux_session_name: String,
 }
 
 impl Orchestrator {
@@ -66,14 +67,38 @@ impl Orchestrator {
 
         let state = State::load_or_create(&state_dir)?;
         let worktree_manager = WorktreeManager::new(&repo_root, &worktrees_dir);
-        let tmux = TmuxManager::new(TMUX_SESSION_NAME);
+        let tmux_session_name = Self::generate_session_name(&repo_root);
+        let tmux = TmuxManager::new(&tmux_session_name);
 
         Ok(Self {
             state,
             repo_root,
             worktree_manager,
             tmux,
+            tmux_session_name,
         })
+    }
+
+    /// Generate a unique tmux session name based on the repository path.
+    /// Uses the last component of the path (project name) plus a short hash
+    /// to ensure uniqueness when multiple projects have the same name.
+    fn generate_session_name(repo_root: &Path) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        // Get the project directory name
+        let project_name = repo_root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        // Create a short hash of the full path for uniqueness
+        let mut hasher = DefaultHasher::new();
+        repo_root.hash(&mut hasher);
+        let hash = hasher.finish();
+        let short_hash = format!("{:x}", hash).chars().take(6).collect::<String>();
+
+        format!("{TMUX_SESSION_PREFIX}-{project_name}-{short_hash}")
     }
 
     fn find_repo_root() -> Result<PathBuf> {
@@ -176,7 +201,7 @@ impl Orchestrator {
             branch,
             base_branch,
             worktree_path,
-            TMUX_SESSION_NAME.to_string(),
+            self.tmux_session_name.clone(),
             id.0.clone(),
         );
 
@@ -535,5 +560,46 @@ mod tests {
             .collect();
 
         assert!(matched.is_empty());
+    }
+
+    #[test]
+    fn test_generate_session_name_includes_project_name() {
+        let path = PathBuf::from("/home/user/projects/my-project");
+        let session_name = Orchestrator::generate_session_name(&path);
+
+        assert!(session_name.starts_with("wta-my-project-"));
+    }
+
+    #[test]
+    fn test_generate_session_name_is_deterministic() {
+        let path = PathBuf::from("/home/user/projects/my-project");
+        let session_name1 = Orchestrator::generate_session_name(&path);
+        let session_name2 = Orchestrator::generate_session_name(&path);
+
+        assert_eq!(session_name1, session_name2);
+    }
+
+    #[test]
+    fn test_generate_session_name_different_paths_different_names() {
+        let path1 = PathBuf::from("/home/user/projects/project-a");
+        let path2 = PathBuf::from("/home/user/projects/project-b");
+        let session_name1 = Orchestrator::generate_session_name(&path1);
+        let session_name2 = Orchestrator::generate_session_name(&path2);
+
+        assert_ne!(session_name1, session_name2);
+    }
+
+    #[test]
+    fn test_generate_session_name_same_name_different_location_different_hash() {
+        // Two projects with same name but different paths should have different session names
+        let path1 = PathBuf::from("/home/user/work/my-project");
+        let path2 = PathBuf::from("/home/user/personal/my-project");
+        let session_name1 = Orchestrator::generate_session_name(&path1);
+        let session_name2 = Orchestrator::generate_session_name(&path2);
+
+        // Both start with same prefix but have different hashes
+        assert!(session_name1.starts_with("wta-my-project-"));
+        assert!(session_name2.starts_with("wta-my-project-"));
+        assert_ne!(session_name1, session_name2);
     }
 }
