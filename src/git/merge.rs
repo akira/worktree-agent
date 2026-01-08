@@ -148,17 +148,23 @@ mod tests {
 
     #[test]
     fn test_has_conflict_detects_uppercase() {
-        assert!(has_conflict("CONFLICT (content): Merge conflict in file.rs"));
+        assert!(has_conflict(
+            "CONFLICT (content): Merge conflict in file.rs"
+        ));
     }
 
     #[test]
     fn test_has_conflict_detects_lowercase() {
-        assert!(has_conflict("Auto-merging file.rs\nconflict: could not merge"));
+        assert!(has_conflict(
+            "Auto-merging file.rs\nconflict: could not merge"
+        ));
     }
 
     #[test]
     fn test_has_conflict_returns_false_for_clean_merge() {
-        assert!(!has_conflict("Auto-merging file.rs\nMerge made by recursive strategy."));
+        assert!(!has_conflict(
+            "Auto-merging file.rs\nMerge made by recursive strategy."
+        ));
     }
 
     #[test]
@@ -206,10 +212,7 @@ mod tests {
 
     #[test]
     fn test_merge_result_with_conflicts() {
-        let conflicts = vec![
-            PathBuf::from("src/main.rs"),
-            PathBuf::from("src/lib.rs"),
-        ];
+        let conflicts = vec![PathBuf::from("src/main.rs"), PathBuf::from("src/lib.rs")];
         let result = MergeResult {
             success: false,
             message: "Merge failed due to conflicts".to_string(),

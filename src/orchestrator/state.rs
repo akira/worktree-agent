@@ -55,9 +55,7 @@ impl State {
     }
 
     pub fn get_agent(&self, id: &str) -> Option<&Agent> {
-        self.agents
-            .iter()
-            .find(|a| a.id.0 == id || a.branch == id)
+        self.agents.iter().find(|a| a.id.0 == id || a.branch == id)
     }
 
     pub fn get_agent_mut(&mut self, id: &str) -> Option<&mut Agent> {
