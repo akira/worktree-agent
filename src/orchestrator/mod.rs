@@ -199,15 +199,6 @@ impl Orchestrator {
         self.tmux.attach(Some(&agent.tmux_window))
     }
 
-    pub fn dashboard(&self) -> Result<()> {
-        let agents = self.list();
-        let mut windows = Vec::with_capacity(agents.len());
-        for a in &agents {
-            windows.push(a.tmux_window.as_str());
-        }
-        self.tmux.create_dashboard(&windows)
-    }
-
     pub fn check_status(&mut self, id: &str) -> Result<AgentStatus> {
         let agent = self.get_agent(id)?;
 

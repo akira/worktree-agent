@@ -42,9 +42,6 @@ wta status <id>
 
 # Attach to an agent's tmux window
 wta attach <id>
-
-# View all agents in a split-pane dashboard
-wta dashboard
 ```
 
 ### Merge Completed Work
