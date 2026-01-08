@@ -129,9 +129,27 @@ impl Orchestrator {
             format!(" {}", request.claude_args.join(" "))
         };
 
+        // Default allowed tools for safe operations
+        let default_allowed_tools = [
+            "Bash(cargo check:*)",
+            "Bash(cargo build:*)",
+            "Bash(cargo test:*)",
+            "Bash(cargo fmt:*)",
+            "Bash(cargo clippy:*)",
+            "Bash(git diff:*)",
+            "Bash(git status:*)",
+            "Bash(git log:*)",
+            "Bash(git branch:*)",
+            "Bash(git add:*)",
+            "Bash(git commit:*)",
+            "Bash(ls:*)",
+            "Bash(pwd)",
+        ];
+        let allowed_tools_arg = format!("--allowedTools '{}'", default_allowed_tools.join(","));
+
         // Use cat to pipe the prompt to claude (explicit cd to ensure we're in worktree)
         let claude_cmd = format!(
-            "cd {} && cat {} | claude{claude_args_str}",
+            "cd {} && cat {} | claude {allowed_tools_arg}{claude_args_str}",
             worktree_path.display(),
             prompt_file.display()
         );
