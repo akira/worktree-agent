@@ -1,3 +1,4 @@
+use crate::orchestrator::AgentStatus;
 use crate::orchestrator::Orchestrator;
 use crate::Result;
 use tabled::{Table, Tabled};
@@ -19,7 +20,11 @@ struct AgentRow {
 
 pub async fn run() -> Result<()> {
     let orchestrator = Orchestrator::new()?;
-    let agents = orchestrator.list();
+    let agents: Vec<_> = orchestrator
+        .list()
+        .into_iter()
+        .filter(|a| a.status != AgentStatus::Discarded)
+        .collect();
 
     if agents.is_empty() {
         println!("No agents running.");
