@@ -1,0 +1,274 @@
+mod agent;
+mod state;
+
+pub use agent::{Agent, AgentId, AgentStatus};
+pub use state::State;
+
+use crate::error::{Error, Result};
+use crate::git::WorktreeManager;
+use crate::tmux::TmuxManager;
+use std::path::PathBuf;
+
+const TMUX_SESSION_NAME: &str = "wta";
+const WORKTREES_DIR: &str = ".worktrees";
+const STATE_DIR: &str = ".worktree-agents";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MergeStrategy {
+    Merge,
+    Rebase,
+    Squash,
+}
+
+pub struct SpawnRequest {
+    pub task: String,
+    pub branch: Option<String>,
+    pub base: Option<String>,
+    pub claude_args: Vec<String>,
+}
+
+pub struct MergeResult {
+    pub success: bool,
+    pub message: String,
+    pub conflicts: Vec<PathBuf>,
+}
+
+pub struct Orchestrator {
+    state: State,
+    repo_root: PathBuf,
+    worktrees_dir: PathBuf,
+    worktree_manager: WorktreeManager,
+    tmux: TmuxManager,
+}
+
+impl Orchestrator {
+    /// Create a new orchestrator for the current directory
+    pub fn new() -> Result<Self> {
+        let repo_root = Self::find_repo_root()?;
+        let worktrees_dir = repo_root.join(WORKTREES_DIR);
+        let state_dir = repo_root.join(STATE_DIR);
+
+        // Ensure directories exist
+        std::fs::create_dir_all(&worktrees_dir)?;
+        std::fs::create_dir_all(&state_dir)?;
+        std::fs::create_dir_all(state_dir.join("status"))?;
+
+        let state = State::load_or_create(&state_dir)?;
+        let worktree_manager = WorktreeManager::new(&repo_root, &worktrees_dir);
+        let tmux = TmuxManager::new(TMUX_SESSION_NAME);
+
+        Ok(Self {
+            state,
+            repo_root,
+            worktrees_dir,
+            worktree_manager,
+            tmux,
+        })
+    }
+
+    fn find_repo_root() -> Result<PathBuf> {
+        let current_dir = std::env::current_dir()?;
+        let repo = git2::Repository::discover(&current_dir)?;
+        repo.workdir()
+            .map(|p| p.to_path_buf())
+            .ok_or(Error::NotAGitRepository)
+    }
+
+    fn get_current_branch(&self) -> Result<String> {
+        let repo = git2::Repository::open(&self.repo_root)?;
+        let head = repo.head()?;
+        head.shorthand()
+            .map(|s| s.to_string())
+            .ok_or_else(|| Error::Git(git2::Error::from_str("HEAD is not a branch")))
+    }
+
+    pub async fn spawn(&mut self, request: SpawnRequest) -> Result<AgentId> {
+        // 1. Generate ID
+        let id = AgentId(self.state.next_id().to_string());
+
+        // 2. Determine branch name
+        let branch = request.branch.unwrap_or_else(|| format!("wta/{}", id.0));
+
+        // 3. Get base branch
+        let base_branch = match request.base {
+            Some(b) => b,
+            None => self.get_current_branch()?,
+        };
+
+        // 4. Create worktree
+        let worktree_path = self.worktree_manager.create(&id.0, &branch, &base_branch)?;
+
+        // 5. Ensure tmux session exists
+        self.tmux.ensure_session()?;
+
+        // 6. Create tmux window
+        self.tmux.create_window(&id.0, &worktree_path)?;
+
+        // 7. Build status file path for the agent to write
+        let status_file = self
+            .repo_root
+            .join(STATE_DIR)
+            .join("status")
+            .join(format!("{}.json", id.0));
+
+        // 8. Build claude command with task and status file instructions
+        let task_with_instructions = format!(
+            "{}\n\n---\nWhen you complete this task (success or failure), write a JSON status file to:\n{}\n\nWith format: {{\"status\": \"completed\"|\"failed\", \"summary\": \"brief description of what was done\", \"files_changed\": [\"list\", \"of\", \"files\"], \"error\": null or \"error message if failed\"}}",
+            request.task,
+            status_file.display()
+        );
+
+        let escaped_task = task_with_instructions.replace('\'', "'\\''");
+        let claude_args_str = if request.claude_args.is_empty() {
+            String::new()
+        } else {
+            format!(" {}", request.claude_args.join(" "))
+        };
+
+        let claude_cmd = format!("claude -p '{escaped_task}'{claude_args_str}");
+
+        // 9. Send command to tmux
+        self.tmux.send_keys(&id.0, &claude_cmd)?;
+
+        // 10. Register agent in state
+        let agent = Agent::new(
+            id.clone(),
+            request.task,
+            branch,
+            base_branch,
+            worktree_path,
+            TMUX_SESSION_NAME.to_string(),
+            id.0.clone(),
+        );
+
+        self.state.add_agent(agent)?;
+
+        Ok(id)
+    }
+
+    pub fn list(&self) -> Vec<&Agent> {
+        self.state.agents()
+    }
+
+    pub fn get_agent(&self, id: &str) -> Result<&Agent> {
+        self.state
+            .get_agent(id)
+            .ok_or_else(|| Error::AgentNotFound(id.to_string()))
+    }
+
+    pub fn get_agent_mut(&mut self, id: &str) -> Result<&mut Agent> {
+        self.state
+            .get_agent_mut(id)
+            .ok_or_else(|| Error::AgentNotFound(id.to_string()))
+    }
+
+    pub fn get_output(&self, id: &str, lines: usize) -> Result<String> {
+        let agent = self.get_agent(id)?;
+        self.tmux.capture_pane(&agent.tmux_window, lines)
+    }
+
+    pub fn attach(&self, id: &str) -> Result<()> {
+        let agent = self.get_agent(id)?;
+        self.tmux.attach(Some(&agent.tmux_window))
+    }
+
+    pub fn dashboard(&self) -> Result<()> {
+        let agents = self.list();
+        let windows: Vec<&str> = agents.iter().map(|a| a.tmux_window.as_str()).collect();
+        self.tmux.create_dashboard(&windows)
+    }
+
+    pub fn check_status(&mut self, id: &str) -> Result<AgentStatus> {
+        let agent = self.get_agent(id)?;
+
+        // Check if status file exists
+        let status_file = self
+            .repo_root
+            .join(STATE_DIR)
+            .join("status")
+            .join(format!("{}.json", id));
+
+        if status_file.exists() {
+            let content = std::fs::read_to_string(&status_file)?;
+            let status_data: serde_json::Value = serde_json::from_str(&content)?;
+
+            let new_status = match status_data.get("status").and_then(|s| s.as_str()) {
+                Some("completed") => AgentStatus::Completed,
+                Some("failed") => AgentStatus::Failed,
+                _ => return Ok(agent.status),
+            };
+
+            // Update agent status
+            let agent = self.get_agent_mut(id)?;
+            agent.status = new_status;
+            agent.completed_at = Some(chrono::Utc::now());
+            self.state.save()?;
+
+            return Ok(new_status);
+        }
+
+        Ok(agent.status)
+    }
+
+    pub async fn merge(&mut self, id: &str, strategy: MergeStrategy) -> Result<MergeResult> {
+        let agent = self.get_agent(id)?;
+
+        if agent.status == AgentStatus::Running {
+            return Err(Error::AgentStillRunning(id.to_string()));
+        }
+
+        let result = crate::git::merge::merge_branch(
+            &self.repo_root,
+            &agent.branch,
+            &agent.base_branch,
+            strategy,
+        )?;
+
+        if result.success {
+            let agent = self.get_agent_mut(id)?;
+            agent.status = AgentStatus::Merged;
+            self.state.save()?;
+        }
+
+        Ok(result)
+    }
+
+    pub async fn discard(&mut self, id: &str, force: bool) -> Result<()> {
+        let agent = self.get_agent(id)?;
+
+        if agent.status == AgentStatus::Running && !force {
+            return Err(Error::AgentStillRunning(id.to_string()));
+        }
+
+        // Kill tmux window if it exists
+        let _ = self.tmux.kill_window(&agent.tmux_window);
+
+        // Remove worktree
+        self.worktree_manager.remove(id)?;
+
+        // Delete branch
+        let repo = git2::Repository::open(&self.repo_root)?;
+        if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
+            let _ = branch.delete();
+        }
+
+        // Remove status file if it exists
+        let status_file = self
+            .repo_root
+            .join(STATE_DIR)
+            .join("status")
+            .join(format!("{id}.json"));
+        let _ = std::fs::remove_file(status_file);
+
+        // Update agent status and save
+        let agent = self.get_agent_mut(id)?;
+        agent.status = AgentStatus::Discarded;
+        self.state.save()?;
+
+        Ok(())
+    }
+
+    pub fn repo_root(&self) -> &PathBuf {
+        &self.repo_root
+    }
+}
