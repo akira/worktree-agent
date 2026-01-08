@@ -299,18 +299,14 @@ impl Orchestrator {
             let _ = branch.delete();
         }
 
-        // Remove status file if it exists
-        let status_file = self
-            .repo_root
-            .join(STATE_DIR)
-            .join("status")
-            .join(format!("{id}.json"));
+        // Remove prompt and status files if they exist
+        let prompt_file = self.repo_root.join(STATE_DIR).join("prompts").join(format!("{id}.txt"));
+        let status_file = self.repo_root.join(STATE_DIR).join("status").join(format!("{id}.json"));
+        let _ = std::fs::remove_file(prompt_file);
         let _ = std::fs::remove_file(status_file);
 
-        // Update agent status and save
-        let agent = self.get_agent_mut(id)?;
-        agent.status = AgentStatus::Discarded;
-        self.state.save()?;
+        // Remove agent from state entirely
+        self.state.remove_agent(id)?;
 
         Ok(())
     }

@@ -61,6 +61,11 @@ impl State {
     pub fn get_agent_mut(&mut self, id: &str) -> Option<&mut Agent> {
         self.agents.iter_mut().find(|a| a.id.0 == id)
     }
+
+    pub fn remove_agent(&mut self, id: &str) -> Result<()> {
+        self.agents.retain(|a| a.id.0 != id);
+        self.save()
+    }
 }
 
 #[cfg(test)]
