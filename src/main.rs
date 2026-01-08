@@ -51,6 +51,10 @@ enum Commands {
     Attach {
         /// Agent ID
         id: String,
+
+        /// Open VS Code in the worktree directory
+        #[arg(long)]
+        code: bool,
     },
 
     /// Merge agent's work back to base branch
@@ -110,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Status { id, lines } => cli::status::run(id, lines).await?,
 
-        Commands::Attach { id } => cli::attach::run(id).await?,
+        Commands::Attach { id, code } => cli::attach::run(id, code).await?,
 
         Commands::Merge { id, strategy, force } => cli::merge::run(id, strategy, force).await?,
 

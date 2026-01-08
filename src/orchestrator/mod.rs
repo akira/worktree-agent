@@ -251,6 +251,16 @@ impl Orchestrator {
         self.tmux.attach(Some(&agent.tmux_window))
     }
 
+    /// Open VS Code in the agent's worktree directory
+    pub fn open_vscode(&self, id: &str) -> Result<()> {
+        let agent = self.get_agent(id)?;
+        std::process::Command::new("code")
+            .arg(&agent.worktree_path)
+            .spawn()
+            .map_err(|e| Error::Tmux(format!("Failed to open VS Code: {e}")))?;
+        Ok(())
+    }
+
     pub fn check_status(&mut self, id: &str) -> Result<AgentStatus> {
         let agent = self.get_agent(id)?;
 
