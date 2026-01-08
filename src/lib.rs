@@ -5,4 +5,3 @@ pub mod orchestrator;
 pub mod tmux;
 
 pub use error::{Error, Result};
-pub use orchestrator::{Agent, AgentId, AgentStatus, Orchestrator, SpawnRequest};
