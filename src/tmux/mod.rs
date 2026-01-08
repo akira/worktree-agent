@@ -3,13 +3,10 @@ use std::path::Path;
 use std::process::Command;
 
 const TMUX: &str = "tmux";
-const DASHBOARD_WINDOW: &str = "dashboard";
 const MAIN_WINDOW: &str = "main";
-const ERR_NO_WINDOWS: &str = "No windows to display";
 const ERR_CREATE_SESSION: &str = "Failed to create tmux session";
 const ERR_CREATE_WINDOW: &str = "Failed to create tmux window";
 const ERR_SEND_KEYS: &str = "Failed to send keys to tmux";
-const ERR_CREATE_DASHBOARD: &str = "Failed to create dashboard window";
 
 pub struct TmuxManager {
     session_name: String,
@@ -135,50 +132,5 @@ impl TmuxManager {
             return Err(Error::TmuxSessionNotFound(self.session_name.clone()));
         }
         Ok(())
-    }
-
-    /// Create a dashboard with split panes for all windows
-    pub fn create_dashboard(&self, windows: &[&str]) -> Result<()> {
-        if windows.is_empty() {
-            return Err(Error::Tmux(ERR_NO_WINDOWS.to_string()));
-        }
-
-        // If dashboard window exists, kill it first
-        let _ = self.kill_window(DASHBOARD_WINDOW);
-
-        // Create fresh dashboard window
-        let output =
-            self.run_tmux(&["new-window", "-t", &self.session_name, "-n", DASHBOARD_WINDOW])?;
-
-        if !output.status.success() {
-            return Err(Error::Tmux(format!(
-                "{ERR_CREATE_DASHBOARD}: {}",
-                String::from_utf8_lossy(&output.stderr)
-            )));
-        }
-
-        let dashboard_target = self.target(DASHBOARD_WINDOW);
-
-        // Link the first window's pane
-        if let Some(first) = windows.first() {
-            let first_target = self.target(first);
-            let cmd = format!("tmux join-pane -s {first_target} -t {dashboard_target} || true");
-            self.run_tmux(&["send-keys", "-t", &dashboard_target, &cmd, "Enter"])?;
-        }
-
-        // For additional windows, split and link
-        for window in windows.iter().skip(1) {
-            let target = self.target(window);
-            self.run_tmux(&["split-window", "-t", &dashboard_target, "-h"])?;
-
-            let cmd = format!("tmux join-pane -s {target} -t {dashboard_target} || true");
-            self.run_tmux(&["send-keys", "-t", &dashboard_target, &cmd, "Enter"])?;
-        }
-
-        // Tile the panes evenly
-        self.run_tmux(&["select-layout", "-t", &dashboard_target, "tiled"])?;
-
-        // Attach to the dashboard
-        self.attach(Some(DASHBOARD_WINDOW))
     }
 }

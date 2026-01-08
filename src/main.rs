@@ -53,9 +53,6 @@ enum Commands {
         id: String,
     },
 
-    /// Open dashboard with all agents in split panes
-    Dashboard,
-
     /// Merge agent's work back to base branch
     Merge {
         /// Agent ID
@@ -103,8 +100,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::Status { id, lines } => cli::status::run(id, lines).await?,
 
         Commands::Attach { id } => cli::attach::run(id).await?,
-
-        Commands::Dashboard => cli::dashboard::run().await?,
 
         Commands::Merge { id, strategy, force } => cli::merge::run(id, strategy, force).await?,
 
