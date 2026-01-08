@@ -8,7 +8,7 @@ use crate::error::{Error, Result};
 use crate::git::WorktreeManager;
 use crate::tmux::TmuxManager;
 use clap::ValueEnum;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const TMUX_SESSION_NAME: &str = "wta";
 const WORKTREES_DIR: &str = ".worktrees";
@@ -108,27 +108,36 @@ impl Orchestrator {
         // 4. Create worktree
         let worktree_path = self.worktree_manager.create(&id.0, &branch, &base_branch)?;
 
-        // 5. Ensure tmux session exists
+        // 5. Copy .claude settings from main repo to worktree for permission inheritance
+        let main_claude_dir = self.repo_root.join(".claude");
+        if main_claude_dir.exists() {
+            let worktree_claude_dir = worktree_path.join(".claude");
+            if let Err(e) = Self::copy_dir_recursive(&main_claude_dir, &worktree_claude_dir) {
+                eprintln!("Warning: could not copy .claude settings to worktree: {e}");
+            }
+        }
+
+        // 6. Ensure tmux session exists
         self.tmux.ensure_session()?;
 
-        // 6. Create tmux window
+        // 7. Create tmux window
         self.tmux.create_window(&id.0, &worktree_path)?;
 
-        // 7. Build status file path for the agent to write
+        // 8. Build status file path for the agent to write
         let status_file = self
             .repo_root
             .join(STATE_DIR)
             .join("status")
             .join(format!("{}.json", id.0));
 
-        // 8. Build claude command with task and status file instructions
+        // 9. Build claude command with task and status file instructions
         let task_with_instructions = format!(
             "{}\n\n---\nIMPORTANT: When you complete this task:\n1. Commit your changes (do NOT include Co-Authored-By in commits)\n2. Write a JSON status file to: {}\n   Format: {{\"status\": \"completed\"|\"failed\", \"summary\": \"brief description\", \"files_changed\": [\"file1\", \"file2\"], \"error\": null}}",
             request.task,
             status_file.display()
         );
 
-        // 9. Write prompt to a file (avoids shell quoting issues with newlines)
+        // 10. Write prompt to a file (avoids shell quoting issues with newlines)
         let prompts_dir = self.repo_root.join(STATE_DIR).join("prompts");
         std::fs::create_dir_all(&prompts_dir)?;
         let prompt_file = prompts_dir.join(format!("{}.txt", id.0));
@@ -166,10 +175,10 @@ impl Orchestrator {
             prompt_file.display()
         );
 
-        // 10. Send command to tmux
+        // 11. Send command to tmux
         self.tmux.send_keys(&id.0, &claude_cmd)?;
 
-        // 11. Register agent in state
+        // 12. Register agent in state
         let agent = Agent::new(
             id.clone(),
             request.task,
@@ -389,6 +398,25 @@ impl Orchestrator {
             .join(format!("{}.json", agent.id.0));
         let _ = std::fs::remove_file(prompt_file);
         let _ = std::fs::remove_file(status_file);
+    }
+
+    /// Recursively copy a directory and its contents
+    fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+        std::fs::create_dir_all(dst)?;
+
+        for entry in std::fs::read_dir(src)? {
+            let entry = entry?;
+            let src_path = entry.path();
+            let dst_path = dst.join(entry.file_name());
+
+            if src_path.is_dir() {
+                Self::copy_dir_recursive(&src_path, &dst_path)?;
+            } else {
+                std::fs::copy(&src_path, &dst_path)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
