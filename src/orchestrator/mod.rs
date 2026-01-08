@@ -156,7 +156,13 @@ impl Orchestrator {
             "Bash(ls:*)",
             "Bash(pwd)",
         ];
-        let allowed_tools_arg = format!("--allowedTools '{}'", default_allowed_tools.join(","));
+        // Allow writing to the status file so agent can report completion
+        let status_file_pattern = format!("Write({})", status_file.display());
+        let allowed_tools_arg = format!(
+            "--allowedTools '{},{}'",
+            default_allowed_tools.join(","),
+            status_file_pattern
+        );
 
         // Use cat to pipe the prompt to claude (explicit cd to ensure we're in worktree)
         // --permission-mode acceptEdits allows agents to work without directory trust prompts
