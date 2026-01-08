@@ -112,7 +112,7 @@ impl Orchestrator {
 
         // 8. Build claude command with task and status file instructions
         let task_with_instructions = format!(
-            "{}\n\n---\nWhen you complete this task (success or failure), write a JSON status file to:\n{}\n\nFormat: {{\"status\": \"completed\"|\"failed\", \"summary\": \"brief description\", \"files_changed\": [\"file1\", \"file2\"], \"error\": null}}",
+            "{}\n\n---\nIMPORTANT: When you complete this task:\n1. Commit all your changes with a descriptive commit message\n2. Write a JSON status file to: {}\n   Format: {{\"status\": \"completed\"|\"failed\", \"summary\": \"brief description\", \"files_changed\": [\"file1\", \"file2\"], \"error\": null}}",
             request.task,
             status_file.display()
         );
