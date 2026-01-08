@@ -129,9 +129,10 @@ impl Orchestrator {
             format!(" {}", request.claude_args.join(" "))
         };
 
-        // Use cat to pipe the prompt to claude (agent will exit when done per instructions)
+        // Use cat to pipe the prompt to claude (explicit cd to ensure we're in worktree)
         let claude_cmd = format!(
-            "cat {} | claude{claude_args_str}",
+            "cd {} && cat {} | claude{claude_args_str}",
+            worktree_path.display(),
             prompt_file.display()
         );
 
