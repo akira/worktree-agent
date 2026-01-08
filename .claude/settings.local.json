@@ -6,7 +6,8 @@
       "Bash(cargo test:*)",
       "Bash(cargo check:*)",
       "Edit",
-      "Bash(cargo fmt:*)"
+      "Bash(cargo fmt:*)",
+      "Bash(git add:*)"
     ]
   }
 }
