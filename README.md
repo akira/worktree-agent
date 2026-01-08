@@ -40,6 +40,9 @@ wta list
 # Get status and output for a specific agent
 wta status <id>
 
+# Get more lines of output
+wta status <id> --lines 100
+
 # Attach to an agent's tmux window
 wta attach <id>
 ```
@@ -60,27 +63,42 @@ wta merge <id> --strategy squash
 wta merge <id> --force
 ```
 
-### Cleanup
+### Remove Agents
 
 ```bash
-# Discard an agent's worktree and branch
-wta discard <id>
+# Remove an agent, kill window, and cleanup worktree
+wta remove <id>
 
-# Force discard
-wta discard <id> --force
+# Force remove even if agent is still running
+wta remove <id> --force
+```
+
+### Prune Stale Agents
+
+```bash
+# Prune stale agents (completed, failed, or merged)
+wta prune
+
+# Prune all agents including running ones
+wta prune --all
+
+# Prune only agents with a specific status
+wta prune --status completed
+wta prune --status failed
+wta prune --status merged
 ```
 
 ## Agent Lifecycle
 
 ```
-Spawned → Running → Completed/Failed → Merged/Discarded
+Spawned → Running → Completed/Failed → Merged/Removed
 ```
 
 1. **Running**: Agent is actively working in its tmux window
 2. **Completed**: Agent finished successfully (wrote status file)
 3. **Failed**: Agent encountered an error
 4. **Merged**: Work merged back to base branch
-5. **Discarded**: Agent's worktree and branch removed
+5. **Removed**: Agent's worktree and branch removed
 
 ## Directory Structure
 
