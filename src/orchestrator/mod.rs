@@ -282,8 +282,10 @@ impl Orchestrator {
         // Kill tmux window if it exists
         let _ = self.tmux.kill_window(&agent.tmux_window);
 
-        // Remove worktree
-        self.worktree_manager.remove(id)?;
+        // Remove worktree (warn if already gone)
+        if let Err(e) = self.worktree_manager.remove(id) {
+            eprintln!("Warning: could not remove worktree: {e}");
+        }
 
         // Delete branch
         let repo = git2::Repository::open(&self.repo_root)?;
