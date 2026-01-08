@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{fmt, EnvFilter};
 use worktree_agent::cli;
+use worktree_agent::cli::worktree::WorktreeCommands;
 use worktree_agent::orchestrator::{AgentStatus, MergeStrategy};
 
 #[derive(Parser)]
@@ -95,6 +96,12 @@ enum Commands {
         #[arg(short, long, value_enum)]
         status: Option<AgentStatus>,
     },
+
+    /// Manage git worktrees directly (without agents)
+    Worktree {
+        #[command(subcommand)]
+        command: WorktreeCommands,
+    },
 }
 
 #[tokio::main]
@@ -128,6 +135,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Remove { id, force } => cli::remove::run(id, force).await?,
 
         Commands::Prune { all, status } => cli::prune::run(all, status).await?,
+
+        Commands::Worktree { command } => cli::worktree::run(command).await?,
     }
 
     Ok(())

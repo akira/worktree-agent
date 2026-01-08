@@ -229,6 +229,11 @@ impl Orchestrator {
         self.state.agents()
     }
 
+    /// Get the path to the worktrees directory
+    pub fn worktrees_dir(&self) -> PathBuf {
+        self.repo_root.join(WORKTREES_DIR)
+    }
+
     pub fn get_agent(&self, id: &str) -> Result<&Agent> {
         self.state
             .get_agent(id)
