@@ -5,6 +5,7 @@ pub async fn run(
     task: String,
     branch: Option<String>,
     base: Option<String>,
+    code: bool,
     claude_args: Vec<String>,
 ) -> Result<()> {
     let mut orchestrator = Orchestrator::new()?;
@@ -17,6 +18,10 @@ pub async fn run(
     };
 
     let id = orchestrator.spawn(request).await?;
+
+    if code {
+        orchestrator.open_vscode(&id.0)?;
+    }
 
     println!("Spawned agent {} on branch wta/{}", id, id);
     println!("Task: {task}");

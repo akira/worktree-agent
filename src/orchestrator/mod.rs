@@ -667,4 +667,209 @@ mod tests {
         assert!(session_name2.starts_with("wta-my-project-"));
         assert_ne!(session_name1, session_name2);
     }
+
+    #[test]
+    fn test_copy_dir_recursive_copies_files() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let src = temp_dir.path().join("src");
+        let dst = temp_dir.path().join("dst");
+
+        // Create source directory with files
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(src.join("file1.txt"), "content1").unwrap();
+        std::fs::write(src.join("file2.txt"), "content2").unwrap();
+
+        // Copy directory
+        Orchestrator::copy_dir_recursive(&src, &dst).unwrap();
+
+        // Verify files were copied
+        assert!(dst.exists());
+        assert_eq!(
+            std::fs::read_to_string(dst.join("file1.txt")).unwrap(),
+            "content1"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dst.join("file2.txt")).unwrap(),
+            "content2"
+        );
+    }
+
+    #[test]
+    fn test_copy_dir_recursive_copies_nested_directories() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let src = temp_dir.path().join("src");
+        let dst = temp_dir.path().join("dst");
+
+        // Create source directory with nested structure
+        std::fs::create_dir_all(src.join("subdir1/subdir2")).unwrap();
+        std::fs::write(src.join("root.txt"), "root").unwrap();
+        std::fs::write(src.join("subdir1/level1.txt"), "level1").unwrap();
+        std::fs::write(src.join("subdir1/subdir2/level2.txt"), "level2").unwrap();
+
+        // Copy directory
+        Orchestrator::copy_dir_recursive(&src, &dst).unwrap();
+
+        // Verify structure was preserved
+        assert!(dst.join("subdir1").is_dir());
+        assert!(dst.join("subdir1/subdir2").is_dir());
+        assert_eq!(
+            std::fs::read_to_string(dst.join("root.txt")).unwrap(),
+            "root"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dst.join("subdir1/level1.txt")).unwrap(),
+            "level1"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dst.join("subdir1/subdir2/level2.txt")).unwrap(),
+            "level2"
+        );
+    }
+
+    #[test]
+    fn test_copy_dir_recursive_empty_directory() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let src = temp_dir.path().join("src");
+        let dst = temp_dir.path().join("dst");
+
+        // Create empty source directory
+        std::fs::create_dir_all(&src).unwrap();
+
+        // Copy directory
+        Orchestrator::copy_dir_recursive(&src, &dst).unwrap();
+
+        // Verify destination was created
+        assert!(dst.exists());
+        assert!(dst.is_dir());
+    }
+
+    #[test]
+    fn test_copy_dir_recursive_creates_destination() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let src = temp_dir.path().join("src");
+        let dst = temp_dir.path().join("dst/nested/path");
+
+        // Create source directory with a file
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(src.join("test.txt"), "test").unwrap();
+
+        // Destination doesn't exist
+        assert!(!dst.exists());
+
+        // Copy directory - should create destination
+        Orchestrator::copy_dir_recursive(&src, &dst).unwrap();
+
+        // Verify destination was created with contents
+        assert!(dst.exists());
+        assert_eq!(
+            std::fs::read_to_string(dst.join("test.txt")).unwrap(),
+            "test"
+        );
+    }
+
+    #[test]
+    fn test_merge_strategy_equality() {
+        assert_eq!(MergeStrategy::Merge, MergeStrategy::Merge);
+        assert_eq!(MergeStrategy::Rebase, MergeStrategy::Rebase);
+        assert_eq!(MergeStrategy::Squash, MergeStrategy::Squash);
+        assert_ne!(MergeStrategy::Merge, MergeStrategy::Rebase);
+        assert_ne!(MergeStrategy::Merge, MergeStrategy::Squash);
+        assert_ne!(MergeStrategy::Rebase, MergeStrategy::Squash);
+    }
+
+    #[test]
+    fn test_prune_filter_equality() {
+        assert_eq!(PruneFilter::All, PruneFilter::All);
+        assert_eq!(PruneFilter::Inactive, PruneFilter::Inactive);
+        assert_eq!(
+            PruneFilter::Status(AgentStatus::Completed),
+            PruneFilter::Status(AgentStatus::Completed)
+        );
+        assert_ne!(PruneFilter::All, PruneFilter::Inactive);
+        assert_ne!(
+            PruneFilter::Status(AgentStatus::Completed),
+            PruneFilter::Status(AgentStatus::Failed)
+        );
+    }
+
+    #[test]
+    fn test_spawn_request_fields() {
+        let request = SpawnRequest {
+            task: "Fix the bug".to_string(),
+            branch: Some("fix/bug".to_string()),
+            base: Some("main".to_string()),
+            claude_args: vec!["--verbose".to_string()],
+        };
+
+        assert_eq!(request.task, "Fix the bug");
+        assert_eq!(request.branch, Some("fix/bug".to_string()));
+        assert_eq!(request.base, Some("main".to_string()));
+        assert_eq!(request.claude_args.len(), 1);
+        assert_eq!(request.claude_args[0], "--verbose");
+    }
+
+    #[test]
+    fn test_spawn_request_optional_fields() {
+        let request = SpawnRequest {
+            task: "Simple task".to_string(),
+            branch: None,
+            base: None,
+            claude_args: Vec::new(),
+        };
+
+        assert!(request.branch.is_none());
+        assert!(request.base.is_none());
+        assert!(request.claude_args.is_empty());
+    }
+
+    #[test]
+    fn test_merge_result_fields() {
+        let result = MergeResult {
+            success: true,
+            message: "Merged successfully".to_string(),
+            conflicts: Vec::new(),
+        };
+
+        assert!(result.success);
+        assert_eq!(result.message, "Merged successfully");
+        assert!(result.conflicts.is_empty());
+    }
+
+    #[test]
+    fn test_merge_result_with_conflicts() {
+        let result = MergeResult {
+            success: false,
+            message: "Merge failed".to_string(),
+            conflicts: vec![PathBuf::from("src/main.rs")],
+        };
+
+        assert!(!result.success);
+        assert_eq!(result.conflicts.len(), 1);
+        assert_eq!(result.conflicts[0], PathBuf::from("src/main.rs"));
+    }
+
+    #[test]
+    fn test_generate_session_name_handles_unknown_project() {
+        // When the path has no file name (root), it should use "unknown"
+        let path = PathBuf::from("/");
+        let session_name = Orchestrator::generate_session_name(&path);
+
+        // Should still generate a valid session name
+        assert!(session_name.starts_with("wta-"));
+    }
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(TMUX_SESSION_PREFIX, "wta");
+        assert_eq!(WORKTREES_DIR, ".worktrees");
+        assert_eq!(STATE_DIR, ".worktree-agents");
+    }
 }

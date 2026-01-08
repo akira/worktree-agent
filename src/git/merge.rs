@@ -141,3 +141,118 @@ fn get_conflict_files(repo_root: &Path) -> Result<Vec<PathBuf>> {
     let stdout = String::from_utf8_lossy(&output.stdout);
     Ok(stdout.lines().map(|l| PathBuf::from(l.trim())).collect())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_has_conflict_detects_uppercase() {
+        assert!(has_conflict("CONFLICT (content): Merge conflict in file.rs"));
+    }
+
+    #[test]
+    fn test_has_conflict_detects_lowercase() {
+        assert!(has_conflict("Auto-merging file.rs\nconflict: could not merge"));
+    }
+
+    #[test]
+    fn test_has_conflict_returns_false_for_clean_merge() {
+        assert!(!has_conflict("Auto-merging file.rs\nMerge made by recursive strategy."));
+    }
+
+    #[test]
+    fn test_has_conflict_returns_false_for_empty() {
+        assert!(!has_conflict(""));
+    }
+
+    #[test]
+    fn test_has_conflict_with_mixed_case() {
+        // The function checks for both CONFLICT and conflict
+        assert!(has_conflict("some text with CONFLICT in it"));
+        assert!(has_conflict("some text with conflict in it"));
+        assert!(!has_conflict("some text with Conflict in it")); // Mixed case not detected
+    }
+
+    #[test]
+    fn test_merge_strategy_enum_values() {
+        // Ensure all merge strategies are distinct
+        assert_ne!(
+            std::mem::discriminant(&MergeStrategy::Merge),
+            std::mem::discriminant(&MergeStrategy::Rebase)
+        );
+        assert_ne!(
+            std::mem::discriminant(&MergeStrategy::Merge),
+            std::mem::discriminant(&MergeStrategy::Squash)
+        );
+        assert_ne!(
+            std::mem::discriminant(&MergeStrategy::Rebase),
+            std::mem::discriminant(&MergeStrategy::Squash)
+        );
+    }
+
+    #[test]
+    fn test_merge_result_success_fields() {
+        let result = MergeResult {
+            success: true,
+            message: "Successfully merged branch".to_string(),
+            conflicts: Vec::new(),
+        };
+
+        assert!(result.success);
+        assert!(result.conflicts.is_empty());
+        assert!(result.message.contains("Successfully"));
+    }
+
+    #[test]
+    fn test_merge_result_with_conflicts() {
+        let conflicts = vec![
+            PathBuf::from("src/main.rs"),
+            PathBuf::from("src/lib.rs"),
+        ];
+        let result = MergeResult {
+            success: false,
+            message: "Merge failed due to conflicts".to_string(),
+            conflicts: conflicts.clone(),
+        };
+
+        assert!(!result.success);
+        assert_eq!(result.conflicts.len(), 2);
+        assert_eq!(result.conflicts[0], PathBuf::from("src/main.rs"));
+        assert_eq!(result.conflicts[1], PathBuf::from("src/lib.rs"));
+    }
+
+    /// Test helper for parsing conflict file output
+    #[test]
+    fn test_parse_conflict_files_output() {
+        let output = "src/main.rs\nsrc/lib.rs\nCargo.toml\n";
+        let files: Vec<PathBuf> = output.lines().map(|l| PathBuf::from(l.trim())).collect();
+
+        assert_eq!(files.len(), 3);
+        assert_eq!(files[0], PathBuf::from("src/main.rs"));
+        assert_eq!(files[1], PathBuf::from("src/lib.rs"));
+        assert_eq!(files[2], PathBuf::from("Cargo.toml"));
+    }
+
+    #[test]
+    fn test_parse_conflict_files_empty() {
+        let output = "";
+        let files: Vec<PathBuf> = output
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(|l| PathBuf::from(l.trim()))
+            .collect();
+
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn test_parse_conflict_files_with_whitespace() {
+        let output = "  src/main.rs  \n  src/lib.rs  \n";
+        let files: Vec<PathBuf> = output.lines().map(|l| PathBuf::from(l.trim())).collect();
+
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0], PathBuf::from("src/main.rs"));
+        assert_eq!(files[1], PathBuf::from("src/lib.rs"));
+    }
+}
