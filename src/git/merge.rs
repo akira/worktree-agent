@@ -1,7 +1,40 @@
 use crate::error::{Error, Result};
 use crate::orchestrator::{MergeResult, MergeStrategy};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
+
+const GIT: &str = "git";
+const CONFLICT_UPPER: &str = "CONFLICT";
+const CONFLICT_LOWER: &str = "conflict";
+
+fn run_git(repo_root: &Path, args: &[&str]) -> Result<Output> {
+    Command::new(GIT)
+        .current_dir(repo_root)
+        .args(args)
+        .output()
+        .map_err(Error::from)
+}
+
+fn run_git_checked(repo_root: &Path, args: &[&str], command_name: &str) -> Result<Output> {
+    let output = run_git(repo_root, args)?;
+    if !output.status.success() {
+        return Err(Error::CommandFailed {
+            command: command_name.to_string(),
+            code: output.status.code(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        });
+    }
+    Ok(output)
+}
+
+fn has_conflict(stderr: &str) -> bool {
+    stderr.contains(CONFLICT_UPPER) || stderr.contains(CONFLICT_LOWER)
+}
+
+fn checkout(repo_root: &Path, branch: &str) -> Result<()> {
+    run_git_checked(repo_root, &["checkout", branch], "git checkout")?;
+    Ok(())
+}
 
 /// Merge a branch back into the base branch
 pub fn merge_branch(
@@ -10,19 +43,7 @@ pub fn merge_branch(
     base_branch: &str,
     strategy: MergeStrategy,
 ) -> Result<MergeResult> {
-    // First, checkout the base branch
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["checkout", base_branch])
-        .output()?;
-
-    if !output.status.success() {
-        return Err(Error::CommandFailed {
-            command: "git checkout".to_string(),
-            code: output.status.code(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
-    }
+    checkout(repo_root, base_branch)?;
 
     match strategy {
         MergeStrategy::Merge => do_merge(repo_root, branch),
@@ -32,72 +53,40 @@ pub fn merge_branch(
 }
 
 fn do_merge(repo_root: &Path, branch: &str) -> Result<MergeResult> {
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["merge", branch, "--no-edit"])
-        .output()?;
+    let output = run_git(repo_root, &["merge", branch, "--no-edit"])?;
 
     if output.status.success() {
-        Ok(MergeResult {
+        return Ok(MergeResult {
             success: true,
             message: format!("Successfully merged {branch}"),
             conflicts: Vec::new(),
-        })
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        if stderr.contains("CONFLICT") || stderr.contains("conflict") {
-            // Get list of conflicting files
-            let conflicts = get_conflict_files(repo_root)?;
-
-            // Abort the merge
-            let _ = Command::new("git")
-                .current_dir(repo_root)
-                .args(["merge", "--abort"])
-                .output();
-
-            Err(Error::MergeConflict(conflicts))
-        } else {
-            Err(Error::CommandFailed {
-                command: "git merge".to_string(),
-                code: output.status.code(),
-                stderr: stderr.to_string(),
-            })
-        }
-    }
-}
-
-fn do_rebase(repo_root: &Path, branch: &str, base_branch: &str) -> Result<MergeResult> {
-    // Checkout the feature branch
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["checkout", branch])
-        .output()?;
-
-    if !output.status.success() {
-        return Err(Error::CommandFailed {
-            command: "git checkout".to_string(),
-            code: output.status.code(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
         });
     }
 
-    // Rebase onto base branch
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["rebase", base_branch])
-        .output()?;
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if has_conflict(&stderr) {
+        let conflicts = get_conflict_files(repo_root)?;
+        let _ = run_git(repo_root, &["merge", "--abort"]);
+        return Err(Error::MergeConflict(conflicts));
+    }
+
+    Err(Error::CommandFailed {
+        command: "git merge".to_string(),
+        code: output.status.code(),
+        stderr: stderr.to_string(),
+    })
+}
+
+fn do_rebase(repo_root: &Path, branch: &str, base_branch: &str) -> Result<MergeResult> {
+    checkout(repo_root, branch)?;
+
+    let output = run_git(repo_root, &["rebase", base_branch])?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        if stderr.contains("CONFLICT") || stderr.contains("conflict") {
+        if has_conflict(&stderr) {
             let conflicts = get_conflict_files(repo_root)?;
-
-            // Abort the rebase
-            let _ = Command::new("git")
-                .current_dir(repo_root)
-                .args(["rebase", "--abort"])
-                .output();
-
+            let _ = run_git(repo_root, &["rebase", "--abort"]);
             return Err(Error::MergeConflict(conflicts));
         }
         return Err(Error::CommandFailed {
@@ -107,57 +96,28 @@ fn do_rebase(repo_root: &Path, branch: &str, base_branch: &str) -> Result<MergeR
         });
     }
 
-    // Fast-forward merge back to base
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["checkout", base_branch])
-        .output()?;
+    checkout(repo_root, base_branch)?;
+    run_git_checked(
+        repo_root,
+        &["merge", "--ff-only", branch],
+        "git merge --ff-only",
+    )?;
 
-    if !output.status.success() {
-        return Err(Error::CommandFailed {
-            command: "git checkout".to_string(),
-            code: output.status.code(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
-    }
-
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["merge", "--ff-only", branch])
-        .output()?;
-
-    if output.status.success() {
-        Ok(MergeResult {
-            success: true,
-            message: format!("Successfully rebased and merged {branch}"),
-            conflicts: Vec::new(),
-        })
-    } else {
-        Err(Error::CommandFailed {
-            command: "git merge --ff-only".to_string(),
-            code: output.status.code(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        })
-    }
+    Ok(MergeResult {
+        success: true,
+        message: format!("Successfully rebased and merged {branch}"),
+        conflicts: Vec::new(),
+    })
 }
 
 fn do_squash_merge(repo_root: &Path, branch: &str) -> Result<MergeResult> {
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["merge", "--squash", branch])
-        .output()?;
+    let output = run_git(repo_root, &["merge", "--squash", branch])?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        if stderr.contains("CONFLICT") || stderr.contains("conflict") {
+        if has_conflict(&stderr) {
             let conflicts = get_conflict_files(repo_root)?;
-
-            // Reset to abort the squash merge
-            let _ = Command::new("git")
-                .current_dir(repo_root)
-                .args(["reset", "--hard", "HEAD"])
-                .output();
-
+            let _ = run_git(repo_root, &["reset", "--hard", "HEAD"]);
             return Err(Error::MergeConflict(conflicts));
         }
         return Err(Error::CommandFailed {
@@ -167,33 +127,17 @@ fn do_squash_merge(repo_root: &Path, branch: &str) -> Result<MergeResult> {
         });
     }
 
-    // Commit the squashed changes
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["commit", "--no-edit"])
-        .output()?;
+    run_git_checked(repo_root, &["commit", "--no-edit"], "git commit")?;
 
-    if output.status.success() {
-        Ok(MergeResult {
-            success: true,
-            message: format!("Successfully squash-merged {branch}"),
-            conflicts: Vec::new(),
-        })
-    } else {
-        Err(Error::CommandFailed {
-            command: "git commit".to_string(),
-            code: output.status.code(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        })
-    }
+    Ok(MergeResult {
+        success: true,
+        message: format!("Successfully squash-merged {branch}"),
+        conflicts: Vec::new(),
+    })
 }
 
 fn get_conflict_files(repo_root: &Path) -> Result<Vec<PathBuf>> {
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["diff", "--name-only", "--diff-filter=U"])
-        .output()?;
-
+    let output = run_git(repo_root, &["diff", "--name-only", "--diff-filter=U"])?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     Ok(stdout.lines().map(|l| PathBuf::from(l.trim())).collect())
 }

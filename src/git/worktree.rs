@@ -1,6 +1,10 @@
 use crate::error::{Error, Result};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
+
+const GIT: &str = "git";
+const WORKTREE: &str = "worktree";
+const ALREADY_EXISTS: &str = "already exists";
 
 pub struct WorktreeManager {
     repo_root: PathBuf,
@@ -15,6 +19,26 @@ impl WorktreeManager {
         }
     }
 
+    fn run_git(&self, args: &[&str]) -> Result<Output> {
+        Command::new(GIT)
+            .current_dir(&self.repo_root)
+            .args(args)
+            .output()
+            .map_err(Error::from)
+    }
+
+    fn run_git_checked(&self, args: &[&str], command_name: &str) -> Result<Output> {
+        let output = self.run_git(args)?;
+        if !output.status.success() {
+            return Err(Error::CommandFailed {
+                command: command_name.to_string(),
+                code: output.status.code(),
+                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            });
+        }
+        Ok(output)
+    }
+
     /// Create a new worktree with a new branch based on the given base branch
     pub fn create(&self, id: &str, branch: &str, base: &str) -> Result<PathBuf> {
         let worktree_path = self.worktrees_dir.join(id);
@@ -23,22 +47,12 @@ impl WorktreeManager {
             return Err(Error::WorktreeAlreadyExists(worktree_path));
         }
 
-        // Create worktree with new branch
-        let output = Command::new("git")
-            .current_dir(&self.repo_root)
-            .args([
-                "worktree",
-                "add",
-                "-b",
-                branch,
-                worktree_path.to_str().unwrap(),
-                base,
-            ])
-            .output()?;
+        let path_str = worktree_path.to_str().unwrap();
+        let output = self.run_git(&[WORKTREE, "add", "-b", branch, path_str, base])?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            if stderr.contains("already exists") {
+            if stderr.contains(ALREADY_EXISTS) {
                 return Err(Error::BranchAlreadyExists(branch.to_string()));
             }
             return Err(Error::CommandFailed {
@@ -59,42 +73,19 @@ impl WorktreeManager {
             return Err(Error::WorktreeNotFound(worktree_path));
         }
 
-        // Remove worktree (force to handle uncommitted changes)
-        let output = Command::new("git")
-            .current_dir(&self.repo_root)
-            .args([
-                "worktree",
-                "remove",
-                "--force",
-                worktree_path.to_str().unwrap(),
-            ])
-            .output()?;
-
-        if !output.status.success() {
-            return Err(Error::CommandFailed {
-                command: "git worktree remove".to_string(),
-                code: output.status.code(),
-                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-            });
-        }
+        let path_str = worktree_path.to_str().unwrap();
+        self.run_git_checked(
+            &[WORKTREE, "remove", "--force", path_str],
+            "git worktree remove",
+        )?;
 
         Ok(())
     }
 
     /// List all worktrees
     pub fn list(&self) -> Result<Vec<WorktreeInfo>> {
-        let output = Command::new("git")
-            .current_dir(&self.repo_root)
-            .args(["worktree", "list", "--porcelain"])
-            .output()?;
-
-        if !output.status.success() {
-            return Err(Error::CommandFailed {
-                command: "git worktree list".to_string(),
-                code: output.status.code(),
-                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-            });
-        }
+        let output =
+            self.run_git_checked(&[WORKTREE, "list", "--porcelain"], "git worktree list")?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut worktrees = Vec::new();

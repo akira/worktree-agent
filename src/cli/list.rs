@@ -2,6 +2,9 @@ use crate::orchestrator::Orchestrator;
 use crate::Result;
 use tabled::{Table, Tabled};
 
+const TASK_MAX_LEN: usize = 50;
+const TASK_TRUNCATE_LEN: usize = 47;
+
 #[derive(Tabled)]
 struct AgentRow {
     #[tabled(rename = "ID")]
@@ -23,23 +26,21 @@ pub async fn run() -> Result<()> {
         return Ok(());
     }
 
-    let rows: Vec<AgentRow> = agents
-        .iter()
-        .map(|a| {
-            let task = if a.task.len() > 50 {
-                format!("{}...", &a.task[..47])
-            } else {
-                a.task.clone()
-            };
+    let mut rows = Vec::with_capacity(agents.len());
+    for a in agents {
+        let task = if a.task.len() > TASK_MAX_LEN {
+            format!("{}...", &a.task[..TASK_TRUNCATE_LEN])
+        } else {
+            a.task.clone()
+        };
 
-            AgentRow {
-                id: a.id.0.clone(),
-                branch: a.branch.clone(),
-                status: a.status.to_string(),
-                task,
-            }
-        })
-        .collect();
+        rows.push(AgentRow {
+            id: a.id.0.clone(),
+            branch: a.branch.clone(),
+            status: a.status.to_string(),
+            task,
+        });
+    }
 
     let table = Table::new(rows).to_string();
     println!("{table}");

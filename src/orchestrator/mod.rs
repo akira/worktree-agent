@@ -112,7 +112,7 @@ impl Orchestrator {
 
         // 8. Build claude command with task and status file instructions
         let task_with_instructions = format!(
-            "{}\n\n---\nWhen you complete this task (success or failure), write a JSON status file to:\n{}\n\nWith format: {{\"status\": \"completed\"|\"failed\", \"summary\": \"brief description of what was done\", \"files_changed\": [\"list\", \"of\", \"files\"], \"error\": null or \"error message if failed\"}}",
+            "{}\n\n---\nWhen you complete this task (success or failure):\n1. Write a JSON status file to: {}\n   Format: {{\"status\": \"completed\"|\"failed\", \"summary\": \"brief description\", \"files_changed\": [\"file1\", \"file2\"], \"error\": null}}\n2. Then run `exit` to close this session.",
             request.task,
             status_file.display()
         );
@@ -129,7 +129,7 @@ impl Orchestrator {
             format!(" {}", request.claude_args.join(" "))
         };
 
-        // Use cat to pipe the prompt to claude (handles multiline prompts correctly)
+        // Use cat to pipe the prompt to claude (agent will exit when done per instructions)
         let claude_cmd = format!(
             "cat {} | claude{claude_args_str}",
             prompt_file.display()
@@ -182,7 +182,10 @@ impl Orchestrator {
 
     pub fn dashboard(&self) -> Result<()> {
         let agents = self.list();
-        let windows: Vec<&str> = agents.iter().map(|a| a.tmux_window.as_str()).collect();
+        let mut windows = Vec::with_capacity(agents.len());
+        for a in &agents {
+            windows.push(a.tmux_window.as_str());
+        }
         self.tmux.create_dashboard(&windows)
     }
 
