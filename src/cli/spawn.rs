@@ -1,12 +1,14 @@
 use crate::orchestrator::{Orchestrator, SpawnRequest};
+use crate::provider::Provider;
 use crate::Result;
 
 pub async fn run(
     task: String,
     branch: Option<String>,
     base: Option<String>,
+    provider: Provider,
     code: bool,
-    claude_args: Vec<String>,
+    provider_args: Vec<String>,
 ) -> Result<()> {
     let mut orchestrator = Orchestrator::new()?;
 
@@ -14,7 +16,8 @@ pub async fn run(
         task: task.clone(),
         branch,
         base,
-        claude_args,
+        provider,
+        provider_args,
     };
 
     let id = orchestrator.spawn(request).await?;
@@ -24,6 +27,7 @@ pub async fn run(
     }
 
     println!("Spawned agent {id} on branch wta/{id}");
+    println!("Provider: {provider}");
     println!("Task: {task}");
     println!();
     println!("Use 'wta attach {id}' to watch the agent");

@@ -6,6 +6,7 @@ pub use state::State;
 
 use crate::error::{Error, Result};
 use crate::git::WorktreeManager;
+use crate::provider::Provider;
 use crate::tmux::TmuxManager;
 use clap::ValueEnum;
 use std::path::{Path, PathBuf};
@@ -36,7 +37,8 @@ pub struct SpawnRequest {
     pub task: String,
     pub branch: Option<String>,
     pub base: Option<String>,
-    pub claude_args: Vec<String>,
+    pub provider: Provider,
+    pub provider_args: Vec<String>,
 }
 
 pub struct MergeResult {
@@ -155,7 +157,7 @@ impl Orchestrator {
             .join("status")
             .join(format!("{}.json", id.0));
 
-        // 9. Build claude command with task and status file instructions
+        // 9. Build command with task and status file instructions
         let task_with_instructions = format!(
             "{}\n\n---\nIMPORTANT: When you complete this task:\n1. Commit your changes (do NOT include Co-Authored-By in commits)\n2. Write a JSON status file to: {}\n   Format: {{\"status\": \"completed\"|\"failed\", \"summary\": \"brief description\", \"files_changed\": [\"file1\", \"file2\"], \"error\": null}}",
             request.task,
@@ -168,48 +170,18 @@ impl Orchestrator {
         let prompt_file = prompts_dir.join(format!("{}.txt", id.0));
         std::fs::write(&prompt_file, &task_with_instructions)?;
 
-        let claude_args_str = if request.claude_args.is_empty() {
-            String::new()
-        } else {
-            format!(" {}", request.claude_args.join(" "))
-        };
-
-        // Default allowed tools for safe operations
-        let default_allowed_tools = [
-            "Bash(cargo check:*)",
-            "Bash(cargo build:*)",
-            "Bash(cargo test:*)",
-            "Bash(cargo fmt:*)",
-            "Bash(cargo clippy:*)",
-            "Bash(git diff:*)",
-            "Bash(git status:*)",
-            "Bash(git log:*)",
-            "Bash(git branch:*)",
-            "Bash(git add:*)",
-            "Bash(git commit:*)",
-            "Bash(ls:*)",
-            "Bash(pwd)",
-        ];
-        // Allow writing to the status file so agent can report completion
-        let status_file_pattern = format!("Write({})", status_file.display());
-        let allowed_tools_arg = format!(
-            "--allowedTools '{},{}'",
-            default_allowed_tools.join(","),
-            status_file_pattern
+        // 11. Build provider-specific command
+        let provider_cmd = request.provider.build_command(
+            &worktree_path,
+            &prompt_file,
+            &status_file,
+            &request.provider_args,
         );
 
-        // Use cat to pipe the prompt to claude (explicit cd to ensure we're in worktree)
-        // --permission-mode acceptEdits allows agents to work without directory trust prompts
-        let claude_cmd = format!(
-            "cd {} && cat {} | claude --permission-mode acceptEdits {allowed_tools_arg}{claude_args_str}",
-            worktree_path.display(),
-            prompt_file.display()
-        );
+        // 12. Send command to tmux
+        self.tmux.send_keys(&id.0, &provider_cmd)?;
 
-        // 11. Send command to tmux
-        self.tmux.send_keys(&id.0, &claude_cmd)?;
-
-        // 12. Register agent in state
+        // 13. Register agent in state
         let agent = Agent::new(
             id.clone(),
             request.task,
@@ -218,6 +190,7 @@ impl Orchestrator {
             worktree_path,
             self.tmux_session_name.clone(),
             id.0.clone(),
+            request.provider,
         );
 
         self.state.add_agent(agent)?;
@@ -807,32 +780,71 @@ mod tests {
 
     #[test]
     fn test_spawn_request_fields() {
+        use crate::provider::Provider;
+
         let request = SpawnRequest {
             task: "Fix the bug".to_string(),
             branch: Some("fix/bug".to_string()),
             base: Some("main".to_string()),
-            claude_args: vec!["--verbose".to_string()],
+            provider: Provider::Claude,
+            provider_args: vec!["--verbose".to_string()],
         };
 
         assert_eq!(request.task, "Fix the bug");
         assert_eq!(request.branch, Some("fix/bug".to_string()));
         assert_eq!(request.base, Some("main".to_string()));
-        assert_eq!(request.claude_args.len(), 1);
-        assert_eq!(request.claude_args[0], "--verbose");
+        assert_eq!(request.provider, Provider::Claude);
+        assert_eq!(request.provider_args.len(), 1);
+        assert_eq!(request.provider_args[0], "--verbose");
     }
 
     #[test]
     fn test_spawn_request_optional_fields() {
+        use crate::provider::Provider;
+
         let request = SpawnRequest {
             task: "Simple task".to_string(),
             branch: None,
             base: None,
-            claude_args: Vec::new(),
+            provider: Provider::default(),
+            provider_args: Vec::new(),
         };
 
         assert!(request.branch.is_none());
         assert!(request.base.is_none());
-        assert!(request.claude_args.is_empty());
+        assert!(request.provider_args.is_empty());
+    }
+
+    #[test]
+    fn test_spawn_request_with_different_providers() {
+        use crate::provider::Provider;
+
+        let claude_request = SpawnRequest {
+            task: "Task".to_string(),
+            branch: None,
+            base: None,
+            provider: Provider::Claude,
+            provider_args: Vec::new(),
+        };
+        assert_eq!(claude_request.provider, Provider::Claude);
+
+        let codex_request = SpawnRequest {
+            task: "Task".to_string(),
+            branch: None,
+            base: None,
+            provider: Provider::Codex,
+            provider_args: Vec::new(),
+        };
+        assert_eq!(codex_request.provider, Provider::Codex);
+
+        let gemini_request = SpawnRequest {
+            task: "Task".to_string(),
+            branch: None,
+            base: None,
+            provider: Provider::Gemini,
+            provider_args: Vec::new(),
+        };
+        assert_eq!(gemini_request.provider, Provider::Gemini);
     }
 
     #[test]

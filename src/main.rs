@@ -3,6 +3,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 use worktree_agent::cli;
 use worktree_agent::cli::worktree::WorktreeCommands;
 use worktree_agent::orchestrator::{AgentStatus, MergeStrategy};
+use worktree_agent::Provider;
 
 #[derive(Parser)]
 #[command(
@@ -30,13 +31,17 @@ enum Commands {
         #[arg(long)]
         base: Option<String>,
 
+        /// AI provider to use (claude, codex, gemini)
+        #[arg(short, long, value_enum, default_value = "claude")]
+        provider: Provider,
+
         /// Open VS Code in the worktree directory
         #[arg(long)]
         code: bool,
 
-        /// Extra arguments to pass to claude
+        /// Extra arguments to pass to the AI provider
         #[arg(last = true)]
-        claude_args: Vec<String>,
+        provider_args: Vec<String>,
     },
 
     /// List all agents
@@ -116,9 +121,10 @@ async fn main() -> anyhow::Result<()> {
             task,
             branch,
             base,
+            provider,
             code,
-            claude_args,
-        } => cli::spawn::run(task, branch, base, code, claude_args).await?,
+            provider_args,
+        } => cli::spawn::run(task, branch, base, provider, code, provider_args).await?,
 
         Commands::List => cli::list::run().await?,
 

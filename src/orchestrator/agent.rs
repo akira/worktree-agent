@@ -1,3 +1,4 @@
+use crate::provider::Provider;
 use chrono::{DateTime, Utc};
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
@@ -42,11 +43,14 @@ pub struct Agent {
     pub tmux_session: String,
     pub tmux_window: String,
     pub status: AgentStatus,
+    #[serde(default)]
+    pub provider: Provider,
     pub spawned_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
 }
 
 impl Agent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: AgentId,
         task: String,
@@ -55,6 +59,7 @@ impl Agent {
         worktree_path: PathBuf,
         tmux_session: String,
         tmux_window: String,
+        provider: Provider,
     ) -> Self {
         Self {
             id,
@@ -65,6 +70,7 @@ impl Agent {
             tmux_session,
             tmux_window,
             status: AgentStatus::Running,
+            provider,
             spawned_at: Utc::now(),
             completed_at: None,
         }
@@ -80,6 +86,7 @@ impl Agent {
             PathBuf::from(format!(".worktrees/{id}")),
             "wta".to_string(),
             id.to_string(),
+            Provider::default(),
         )
     }
 }
