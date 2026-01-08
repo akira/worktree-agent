@@ -240,6 +240,20 @@ impl Orchestrator {
         )?;
 
         if result.success {
+            // Clean up: remove worktree and delete branch
+            let _ = self.worktree_manager.remove(id);
+
+            let repo = git2::Repository::open(&self.repo_root)?;
+            if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
+                let _ = branch.delete();
+            }
+
+            // Remove prompt and status files
+            let prompt_file = self.repo_root.join(STATE_DIR).join("prompts").join(format!("{id}.txt"));
+            let status_file = self.repo_root.join(STATE_DIR).join("status").join(format!("{id}.json"));
+            let _ = std::fs::remove_file(prompt_file);
+            let _ = std::fs::remove_file(status_file);
+
             let agent = self.get_agent_mut(id)?;
             agent.status = AgentStatus::Merged;
             self.state.save()?;
