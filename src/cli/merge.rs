@@ -1,13 +1,13 @@
 use crate::orchestrator::{MergeStrategy, Orchestrator};
 use crate::Result;
 
-pub async fn run(id: String, strategy: MergeStrategy) -> Result<()> {
+pub async fn run(id: String, strategy: MergeStrategy, force: bool) -> Result<()> {
     let mut orchestrator = Orchestrator::new()?;
 
-    // First check status
+    // Check status (updates from status file if exists)
     orchestrator.check_status(&id)?;
 
-    let result = orchestrator.merge(&id, strategy).await?;
+    let result = orchestrator.merge(&id, strategy, force).await?;
 
     if result.success {
         println!("{}", result.message);

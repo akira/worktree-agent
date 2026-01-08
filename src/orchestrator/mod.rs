@@ -112,7 +112,7 @@ impl Orchestrator {
 
         // 8. Build claude command with task and status file instructions
         let task_with_instructions = format!(
-            "{}\n\n---\nWhen you complete this task (success or failure):\n1. Write a JSON status file to: {}\n   Format: {{\"status\": \"completed\"|\"failed\", \"summary\": \"brief description\", \"files_changed\": [\"file1\", \"file2\"], \"error\": null}}\n2. Then run `exit` to close this session.",
+            "{}\n\n---\nWhen you complete this task (success or failure), write a JSON status file to:\n{}\n\nFormat: {{\"status\": \"completed\"|\"failed\", \"summary\": \"brief description\", \"files_changed\": [\"file1\", \"file2\"], \"error\": null}}",
             request.task,
             status_file.display()
         );
@@ -209,6 +209,9 @@ impl Orchestrator {
                 _ => return Ok(agent.status),
             };
 
+            // Kill tmux window since agent is done
+            let _ = self.tmux.kill_window(&agent.tmux_window);
+
             // Update agent status
             let agent = self.get_agent_mut(id)?;
             agent.status = new_status;
@@ -221,10 +224,10 @@ impl Orchestrator {
         Ok(agent.status)
     }
 
-    pub async fn merge(&mut self, id: &str, strategy: MergeStrategy) -> Result<MergeResult> {
+    pub async fn merge(&mut self, id: &str, strategy: MergeStrategy, force: bool) -> Result<MergeResult> {
         let agent = self.get_agent(id)?;
 
-        if agent.status == AgentStatus::Running {
+        if agent.status == AgentStatus::Running && !force {
             return Err(Error::AgentStillRunning(id.to_string()));
         }
 

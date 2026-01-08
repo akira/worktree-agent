@@ -64,6 +64,10 @@ enum Commands {
         /// Merge strategy
         #[arg(long, value_enum, default_value = "merge")]
         strategy: MergeStrategy,
+
+        /// Force merge even if agent status is unknown
+        #[arg(short, long)]
+        force: bool,
     },
 
     /// Discard agent's work and cleanup
@@ -102,7 +106,7 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Dashboard => cli::dashboard::run().await?,
 
-        Commands::Merge { id, strategy } => cli::merge::run(id, strategy).await?,
+        Commands::Merge { id, strategy, force } => cli::merge::run(id, strategy, force).await?,
 
         Commands::Discard { id, force } => cli::discard::run(id, force).await?,
     }
