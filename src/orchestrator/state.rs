@@ -66,23 +66,8 @@ impl State {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::{AgentId, AgentStatus};
+    use crate::orchestrator::AgentStatus;
     use tempfile::TempDir;
-
-    fn create_test_agent(id: u128) -> Agent {
-        Agent {
-            id: AgentId(id.to_string()),
-            task: format!("Task {id}"),
-            branch: format!("wta/{id}"),
-            base_branch: "main".to_string(),
-            worktree_path: PathBuf::from(format!(".worktrees/{id}")),
-            tmux_session: "wta".to_string(),
-            tmux_window: id.to_string(),
-            status: AgentStatus::Running,
-            spawned_at: chrono::Utc::now(),
-            completed_at: None,
-        }
-    }
 
     #[test]
     fn test_state_load_or_create_new() {
@@ -108,7 +93,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let mut state = State::load_or_create(temp_dir.path()).unwrap();
 
-        let agent = create_test_agent(1);
+        let agent = Agent::create_test_agent(1);
         state.add_agent(agent).unwrap();
 
         assert_eq!(state.agents().len(), 1);
@@ -120,8 +105,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let mut state = State::load_or_create(temp_dir.path()).unwrap();
 
-        state.add_agent(create_test_agent(1)).unwrap();
-        state.add_agent(create_test_agent(2)).unwrap();
+        state.add_agent(Agent::create_test_agent(1)).unwrap();
+        state.add_agent(Agent::create_test_agent(2)).unwrap();
 
         let agent = state.get_agent("1").unwrap();
         assert_eq!(agent.task, "Task 1");
@@ -137,7 +122,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let mut state = State::load_or_create(temp_dir.path()).unwrap();
 
-        state.add_agent(create_test_agent(1)).unwrap();
+        state.add_agent(Agent::create_test_agent(1)).unwrap();
 
         let agent = state.get_agent_mut("1").unwrap();
         agent.status = AgentStatus::Completed;
@@ -157,8 +142,8 @@ mod tests {
             let mut state = State::load_or_create(temp_dir.path()).unwrap();
             let _ = state.next_id(); // Consume ID 1
             let _ = state.next_id(); // Consume ID 2
-            state.add_agent(create_test_agent(1)).unwrap();
-            state.add_agent(create_test_agent(2)).unwrap();
+            state.add_agent(Agent::create_test_agent(1)).unwrap();
+            state.add_agent(Agent::create_test_agent(2)).unwrap();
             state.save().unwrap();
         }
 
@@ -179,7 +164,7 @@ mod tests {
         // Session 1: Create and add agent
         {
             let mut state = State::load_or_create(temp_dir.path()).unwrap();
-            state.add_agent(create_test_agent(1)).unwrap();
+            state.add_agent(Agent::create_test_agent(1)).unwrap();
         }
 
         // Session 2: Modify agent status

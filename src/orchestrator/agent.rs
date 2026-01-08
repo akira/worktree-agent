@@ -70,16 +70,12 @@ impl Agent {
             completed_at: None,
         }
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_agent(id: u128) -> Agent {
-        Agent::new(
+    #[cfg(test)]
+    pub fn create_test_agent(id: u128) -> Self {
+        Self::new(
             AgentId(id.to_string()),
-            "Test task".to_string(),
+            format!("Task {id}"),
             format!("wta/{id}"),
             "main".to_string(),
             PathBuf::from(format!(".worktrees/{id}")),
@@ -87,6 +83,11 @@ mod tests {
             id.to_string(),
         )
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 
     #[test]
     fn test_agent_status_display() {
@@ -105,16 +106,16 @@ mod tests {
 
     #[test]
     fn test_agent_new_sets_running_status() {
-        let agent = create_test_agent(1);
+        let agent = Agent::create_test_agent(1);
         assert_eq!(agent.status, AgentStatus::Running);
         assert!(agent.completed_at.is_none());
     }
 
     #[test]
     fn test_agent_new_sets_fields_correctly() {
-        let agent = create_test_agent(1);
+        let agent = Agent::create_test_agent(1);
         assert_eq!(agent.id.0, "1");
-        assert_eq!(agent.task, "Test task");
+        assert_eq!(agent.task, "Task 1");
         assert_eq!(agent.branch, "wta/1");
         assert_eq!(agent.base_branch, "main");
         assert_eq!(agent.worktree_path, PathBuf::from(".worktrees/1"));
@@ -133,7 +134,7 @@ mod tests {
 
     #[test]
     fn test_agent_serialization_roundtrip() {
-        let agent = create_test_agent(1);
+        let agent = Agent::create_test_agent(1);
         let json = serde_json::to_string(&agent).unwrap();
         let deserialized: Agent = serde_json::from_str(&json).unwrap();
 

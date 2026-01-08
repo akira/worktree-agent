@@ -7,13 +7,14 @@ pub use state::State;
 use crate::error::{Error, Result};
 use crate::git::WorktreeManager;
 use crate::tmux::TmuxManager;
+use clap::ValueEnum;
 use std::path::PathBuf;
 
 const TMUX_SESSION_NAME: &str = "wta";
 const WORKTREES_DIR: &str = ".worktrees";
 const STATE_DIR: &str = ".worktree-agents";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum MergeStrategy {
     Merge,
     Rebase,
@@ -36,7 +37,6 @@ pub struct MergeResult {
 pub struct Orchestrator {
     state: State,
     repo_root: PathBuf,
-    worktrees_dir: PathBuf,
     worktree_manager: WorktreeManager,
     tmux: TmuxManager,
 }
@@ -60,7 +60,6 @@ impl Orchestrator {
         Ok(Self {
             state,
             repo_root,
-            worktrees_dir,
             worktree_manager,
             tmux,
         })
@@ -118,19 +117,28 @@ impl Orchestrator {
             status_file.display()
         );
 
-        let escaped_task = task_with_instructions.replace('\'', "'\\''");
+        // 9. Write prompt to a file (avoids shell quoting issues with newlines)
+        let prompts_dir = self.repo_root.join(STATE_DIR).join("prompts");
+        std::fs::create_dir_all(&prompts_dir)?;
+        let prompt_file = prompts_dir.join(format!("{}.txt", id.0));
+        std::fs::write(&prompt_file, &task_with_instructions)?;
+
         let claude_args_str = if request.claude_args.is_empty() {
             String::new()
         } else {
             format!(" {}", request.claude_args.join(" "))
         };
 
-        let claude_cmd = format!("claude -p '{escaped_task}'{claude_args_str}");
+        // Use cat to pipe the prompt to claude (handles multiline prompts correctly)
+        let claude_cmd = format!(
+            "cat {} | claude{claude_args_str}",
+            prompt_file.display()
+        );
 
-        // 9. Send command to tmux
+        // 10. Send command to tmux
         self.tmux.send_keys(&id.0, &claude_cmd)?;
 
-        // 10. Register agent in state
+        // 11. Register agent in state
         let agent = Agent::new(
             id.clone(),
             request.task,
@@ -266,9 +274,5 @@ impl Orchestrator {
         self.state.save()?;
 
         Ok(())
-    }
-
-    pub fn repo_root(&self) -> &PathBuf {
-        &self.repo_root
     }
 }

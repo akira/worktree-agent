@@ -1,6 +1,7 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
 use tracing_subscriber::{fmt, EnvFilter};
 use worktree_agent::cli;
+use worktree_agent::orchestrator::MergeStrategy;
 
 #[derive(Parser)]
 #[command(
@@ -61,7 +62,7 @@ enum Commands {
         id: String,
 
         /// Merge strategy
-        #[arg(long, default_value = "merge")]
+        #[arg(long, value_enum, default_value = "merge")]
         strategy: MergeStrategy,
     },
 
@@ -74,13 +75,6 @@ enum Commands {
         #[arg(short, long)]
         force: bool,
     },
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum MergeStrategy {
-    Merge,
-    Rebase,
-    Squash,
 }
 
 #[tokio::main]
@@ -108,14 +102,7 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Dashboard => cli::dashboard::run().await?,
 
-        Commands::Merge { id, strategy } => {
-            let strategy = match strategy {
-                MergeStrategy::Merge => worktree_agent::orchestrator::MergeStrategy::Merge,
-                MergeStrategy::Rebase => worktree_agent::orchestrator::MergeStrategy::Rebase,
-                MergeStrategy::Squash => worktree_agent::orchestrator::MergeStrategy::Squash,
-            };
-            cli::merge::run(id, strategy).await?
-        }
+        Commands::Merge { id, strategy } => cli::merge::run(id, strategy).await?,
 
         Commands::Discard { id, force } => cli::discard::run(id, force).await?,
     }

@@ -1,7 +1,6 @@
 use crate::error::{Error, Result};
-use crate::orchestrator::MergeStrategy;
-use crate::orchestrator::MergeResult;
-use std::path::Path;
+use crate::orchestrator::{MergeResult, MergeStrategy};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Merge a branch back into the base branch
@@ -189,15 +188,12 @@ fn do_squash_merge(repo_root: &Path, branch: &str) -> Result<MergeResult> {
     }
 }
 
-fn get_conflict_files(repo_root: &Path) -> Result<Vec<std::path::PathBuf>> {
+fn get_conflict_files(repo_root: &Path) -> Result<Vec<PathBuf>> {
     let output = Command::new("git")
         .current_dir(repo_root)
         .args(["diff", "--name-only", "--diff-filter=U"])
         .output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    Ok(stdout
-        .lines()
-        .map(|l| std::path::PathBuf::from(l.trim()))
-        .collect())
+    Ok(stdout.lines().map(|l| PathBuf::from(l.trim())).collect())
 }
