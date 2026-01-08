@@ -106,6 +106,14 @@ impl TmuxManager {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
+    /// Check if a window exists
+    pub fn window_exists(&self, window: &str) -> bool {
+        let target = self.target(window);
+        self.run_tmux(&["has-session", "-t", &target])
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
     /// Kill a window
     pub fn kill_window(&self, window: &str) -> Result<()> {
         let target = self.target(window);
