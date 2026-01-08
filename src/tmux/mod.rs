@@ -145,3 +145,69 @@ impl TmuxManager {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tmux_manager_new() {
+        let manager = TmuxManager::new("test-session");
+        assert_eq!(manager.session_name, "test-session");
+    }
+
+    #[test]
+    fn test_tmux_manager_target_formatting() {
+        let manager = TmuxManager::new("wta-project-abc123");
+        let target = manager.target("1");
+        assert_eq!(target, "wta-project-abc123:1");
+    }
+
+    #[test]
+    fn test_tmux_manager_target_with_named_window() {
+        let manager = TmuxManager::new("my-session");
+        let target = manager.target("main");
+        assert_eq!(target, "my-session:main");
+    }
+
+    #[test]
+    fn test_tmux_manager_target_with_numeric_window() {
+        let manager = TmuxManager::new("session");
+        let target = manager.target("42");
+        assert_eq!(target, "session:42");
+    }
+
+    #[test]
+    fn test_tmux_manager_session_name_preserved() {
+        let manager = TmuxManager::new("wta-my-project-abc123");
+        assert_eq!(manager.session_name, "wta-my-project-abc123");
+
+        // Verify target still works with complex session name
+        let target = manager.target("window");
+        assert_eq!(target, "wta-my-project-abc123:window");
+    }
+
+    #[test]
+    fn test_tmux_manager_empty_window_name() {
+        let manager = TmuxManager::new("session");
+        let target = manager.target("");
+        assert_eq!(target, "session:");
+    }
+
+    #[test]
+    fn test_main_window_constant() {
+        assert_eq!(MAIN_WINDOW, "main");
+    }
+
+    #[test]
+    fn test_tmux_constant() {
+        assert_eq!(TMUX, "tmux");
+    }
+
+    #[test]
+    fn test_error_message_constants() {
+        assert!(ERR_CREATE_SESSION.contains("session"));
+        assert!(ERR_CREATE_WINDOW.contains("window"));
+        assert!(ERR_SEND_KEYS.contains("keys") || ERR_SEND_KEYS.contains("tmux"));
+    }
+}
