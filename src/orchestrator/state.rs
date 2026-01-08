@@ -19,8 +19,8 @@ impl State {
 
         if state_file.exists() {
             let content = std::fs::read_to_string(&state_file)?;
-            let mut state: State = serde_json::from_str(&content)
-                .map_err(|e| Error::StateCorrupted(e.to_string()))?;
+            let mut state: State =
+                serde_json::from_str(&content).map_err(|e| Error::StateCorrupted(e.to_string()))?;
             state.state_dir = state_dir.to_path_buf();
             Ok(state)
         } else {

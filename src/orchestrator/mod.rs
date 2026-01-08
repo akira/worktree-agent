@@ -296,7 +296,12 @@ impl Orchestrator {
         Ok(agent.status)
     }
 
-    pub async fn merge(&mut self, id: &str, strategy: MergeStrategy, force: bool) -> Result<MergeResult> {
+    pub async fn merge(
+        &mut self,
+        id: &str,
+        strategy: MergeStrategy,
+        force: bool,
+    ) -> Result<MergeResult> {
         let agent = self.get_agent(id)?;
 
         if agent.status == AgentStatus::Running && !force {
@@ -320,8 +325,16 @@ impl Orchestrator {
             }
 
             // Remove prompt and status files
-            let prompt_file = self.repo_root.join(STATE_DIR).join("prompts").join(format!("{id}.txt"));
-            let status_file = self.repo_root.join(STATE_DIR).join("status").join(format!("{id}.json"));
+            let prompt_file = self
+                .repo_root
+                .join(STATE_DIR)
+                .join("prompts")
+                .join(format!("{id}.txt"));
+            let status_file = self
+                .repo_root
+                .join(STATE_DIR)
+                .join("status")
+                .join(format!("{id}.json"));
             let _ = std::fs::remove_file(prompt_file);
             let _ = std::fs::remove_file(status_file);
 
@@ -363,8 +376,16 @@ impl Orchestrator {
         }
 
         // Remove prompt and status files if they exist
-        let prompt_file = self.repo_root.join(STATE_DIR).join("prompts").join(format!("{id}.txt"));
-        let status_file = self.repo_root.join(STATE_DIR).join("status").join(format!("{id}.json"));
+        let prompt_file = self
+            .repo_root
+            .join(STATE_DIR)
+            .join("prompts")
+            .join(format!("{id}.txt"));
+        let status_file = self
+            .repo_root
+            .join(STATE_DIR)
+            .join("status")
+            .join(format!("{id}.json"));
         let _ = std::fs::remove_file(prompt_file);
         let _ = std::fs::remove_file(status_file);
 

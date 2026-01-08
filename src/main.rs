@@ -29,6 +29,10 @@ enum Commands {
         #[arg(long)]
         base: Option<String>,
 
+        /// Open VS Code in the worktree directory
+        #[arg(long)]
+        code: bool,
+
         /// Extra arguments to pass to claude
         #[arg(last = true)]
         claude_args: Vec<String>,
@@ -96,9 +100,7 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize tracing
-    fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .init();
+    fmt().with_env_filter(EnvFilter::from_default_env()).init();
 
     let cli = Cli::parse();
 
@@ -107,8 +109,9 @@ async fn main() -> anyhow::Result<()> {
             task,
             branch,
             base,
+            code,
             claude_args,
-        } => cli::spawn::run(task, branch, base, claude_args).await?,
+        } => cli::spawn::run(task, branch, base, code, claude_args).await?,
 
         Commands::List => cli::list::run().await?,
 
@@ -116,7 +119,11 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Attach { id, code } => cli::attach::run(id, code).await?,
 
-        Commands::Merge { id, strategy, force } => cli::merge::run(id, strategy, force).await?,
+        Commands::Merge {
+            id,
+            strategy,
+            force,
+        } => cli::merge::run(id, strategy, force).await?,
 
         Commands::Remove { id, force } => cli::remove::run(id, force).await?,
 

@@ -88,7 +88,8 @@ mod tests {
 
     #[test]
     fn test_error_display_external_process_failed() {
-        let err = Error::ExternalProcessFailed("Failed to launch VS Code: No such file".to_string());
+        let err =
+            Error::ExternalProcessFailed("Failed to launch VS Code: No such file".to_string());
         assert_eq!(
             err.to_string(),
             "External process failed: Failed to launch VS Code: No such file"
