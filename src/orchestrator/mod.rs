@@ -272,7 +272,7 @@ impl Orchestrator {
         Ok(result)
     }
 
-    pub async fn discard(&mut self, id: &str, force: bool) -> Result<()> {
+    pub async fn remove(&mut self, id: &str, force: bool) -> Result<()> {
         let agent = self.get_agent(id)?;
 
         if agent.status == AgentStatus::Running && !force {
