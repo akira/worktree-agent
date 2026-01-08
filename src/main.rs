@@ -67,12 +67,12 @@ enum Commands {
         force: bool,
     },
 
-    /// Discard agent's work and cleanup
-    Discard {
+    /// Remove agent, kill window, and cleanup worktree
+    Remove {
         /// Agent ID
         id: String,
 
-        /// Force discard even if agent is still running
+        /// Force remove even if agent is still running
         #[arg(short, long)]
         force: bool,
     },
@@ -103,7 +103,7 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Merge { id, strategy, force } => cli::merge::run(id, strategy, force).await?,
 
-        Commands::Discard { id, force } => cli::discard::run(id, force).await?,
+        Commands::Remove { id, force } => cli::remove::run(id, force).await?,
     }
 
     Ok(())
