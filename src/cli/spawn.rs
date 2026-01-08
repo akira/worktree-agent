@@ -19,11 +19,15 @@ pub async fn run(
 
     let id = orchestrator.spawn(request).await?;
 
-    println!("Spawned agent {} on branch wta/{}", id, id);
+    if code {
+        orchestrator.open_vscode(&id.to_string())?;
+    }
+
+    println!("Spawned agent {id} on branch wta/{id}");
     println!("Task: {task}");
     println!();
-    println!("Use 'wta attach {}' to watch the agent", id);
-    println!("Use 'wta status {}' to check progress", id);
+    println!("Use 'wta attach {id}' to watch the agent");
+    println!("Use 'wta status {id}' to check progress");
 
     if code {
         orchestrator.open_vscode(&id.0)?;

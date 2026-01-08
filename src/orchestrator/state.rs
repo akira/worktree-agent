@@ -55,15 +55,19 @@ impl State {
     }
 
     pub fn get_agent(&self, id: &str) -> Option<&Agent> {
-        self.agents.iter().find(|a| a.id.0 == id)
+        self.agents
+            .iter()
+            .find(|a| a.id.0 == id || a.branch == id)
     }
 
     pub fn get_agent_mut(&mut self, id: &str) -> Option<&mut Agent> {
-        self.agents.iter_mut().find(|a| a.id.0 == id)
+        self.agents
+            .iter_mut()
+            .find(|a| a.id.0 == id || a.branch == id)
     }
 
     pub fn remove_agent(&mut self, id: &str) -> Result<()> {
-        self.agents.retain(|a| a.id.0 != id);
+        self.agents.retain(|a| a.id.0 != id && a.branch != id);
         self.save()
     }
 }
@@ -120,6 +124,60 @@ mod tests {
         assert_eq!(agent.task, "Task 2");
 
         assert!(state.get_agent("99").is_none());
+    }
+
+    #[test]
+    fn test_state_get_agent_by_branch() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut state = State::load_or_create(temp_dir.path()).unwrap();
+
+        state.add_agent(Agent::create_test_agent(1)).unwrap();
+        state.add_agent(Agent::create_test_agent(2)).unwrap();
+
+        // Access by branch name
+        let agent = state.get_agent("wta/1").unwrap();
+        assert_eq!(agent.task, "Task 1");
+
+        let agent = state.get_agent("wta/2").unwrap();
+        assert_eq!(agent.task, "Task 2");
+
+        // Non-existent branch
+        assert!(state.get_agent("wta/99").is_none());
+    }
+
+    #[test]
+    fn test_state_get_agent_mut_by_branch() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut state = State::load_or_create(temp_dir.path()).unwrap();
+
+        state.add_agent(Agent::create_test_agent(1)).unwrap();
+
+        let agent = state.get_agent_mut("wta/1").unwrap();
+        agent.status = AgentStatus::Completed;
+
+        let agent = state.get_agent("1").unwrap();
+        assert_eq!(agent.status, AgentStatus::Completed);
+    }
+
+    #[test]
+    fn test_state_remove_agent_by_branch() {
+        let temp_dir = TempDir::new().unwrap();
+        let mut state = State::load_or_create(temp_dir.path()).unwrap();
+
+        state.add_agent(Agent::create_test_agent(1)).unwrap();
+        state.add_agent(Agent::create_test_agent(2)).unwrap();
+
+        assert_eq!(state.agents().len(), 2);
+
+        // Remove by branch name
+        state.remove_agent("wta/1").unwrap();
+        assert_eq!(state.agents().len(), 1);
+        assert!(state.get_agent("1").is_none());
+        assert!(state.get_agent("wta/1").is_none());
+
+        // Agent 2 should still exist
+        assert!(state.get_agent("2").is_some());
+        assert!(state.get_agent("wta/2").is_some());
     }
 
     #[test]
