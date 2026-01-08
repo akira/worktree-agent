@@ -148,8 +148,9 @@ impl Orchestrator {
         let allowed_tools_arg = format!("--allowedTools '{}'", default_allowed_tools.join(","));
 
         // Use cat to pipe the prompt to claude (explicit cd to ensure we're in worktree)
+        // --permission-mode acceptEdits allows agents to work without directory trust prompts
         let claude_cmd = format!(
-            "cd {} && cat {} | claude {allowed_tools_arg}{claude_args_str}",
+            "cd {} && cat {} | claude --permission-mode acceptEdits {allowed_tools_arg}{claude_args_str}",
             worktree_path.display(),
             prompt_file.display()
         );
