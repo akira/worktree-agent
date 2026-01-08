@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{fmt, EnvFilter};
 use worktree_agent::cli;
-use worktree_agent::orchestrator::MergeStrategy;
+use worktree_agent::orchestrator::{AgentStatus, MergeStrategy};
 
 #[derive(Parser)]
 #[command(
@@ -76,6 +76,17 @@ enum Commands {
         #[arg(short, long)]
         force: bool,
     },
+
+    /// Prune stale agents and clean up their resources
+    Prune {
+        /// Prune all agents including running ones
+        #[arg(short, long)]
+        all: bool,
+
+        /// Only prune agents with this status (merged, completed, failed, running)
+        #[arg(short, long, value_enum)]
+        status: Option<AgentStatus>,
+    },
 }
 
 #[tokio::main]
@@ -104,6 +115,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Merge { id, strategy, force } => cli::merge::run(id, strategy, force).await?,
 
         Commands::Remove { id, force } => cli::remove::run(id, force).await?,
+
+        Commands::Prune { all, status } => cli::prune::run(all, status).await?,
     }
 
     Ok(())

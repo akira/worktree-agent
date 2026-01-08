@@ -21,6 +21,17 @@ pub enum MergeStrategy {
     Squash,
 }
 
+/// Filter for selecting which agents to prune
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PruneFilter {
+    /// Prune all agents regardless of status
+    All,
+    /// Prune only agents with a specific status
+    Status(AgentStatus),
+    /// Prune inactive agents (Merged, Completed, Failed)
+    Inactive,
+}
+
 pub struct SpawnRequest {
     pub task: String,
     pub branch: Option<String>,
@@ -303,5 +314,218 @@ impl Orchestrator {
         self.state.remove_agent(id)?;
 
         Ok(())
+    }
+
+    /// Prune agents matching the filter, cleaning up all associated resources
+    /// Returns the list of pruned agents
+    pub async fn prune(&mut self, filter: PruneFilter) -> Result<Vec<Agent>> {
+        // Collect agents to prune based on filter
+        let agents_to_prune: Vec<Agent> = self
+            .state
+            .agents()
+            .iter()
+            .filter(|agent| match filter {
+                PruneFilter::All => true,
+                PruneFilter::Status(status) => agent.status == status,
+                PruneFilter::Inactive => {
+                    matches!(
+                        agent.status,
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                    )
+                }
+            })
+            .map(|a| (*a).clone())
+            .collect();
+
+        let mut pruned = Vec::with_capacity(agents_to_prune.len());
+
+        for agent in agents_to_prune {
+            // Perform cleanup, ignoring errors for resources that may already be gone
+            self.cleanup_agent_resources(&agent);
+
+            // Remove agent from state
+            self.state.remove_agent(&agent.id.0)?;
+
+            pruned.push(agent);
+        }
+
+        Ok(pruned)
+    }
+
+    /// Clean up all resources associated with an agent
+    /// Ignores errors for resources that may already be cleaned up
+    fn cleanup_agent_resources(&self, agent: &Agent) {
+        // Kill tmux window if it exists
+        let _ = self.tmux.kill_window(&agent.tmux_window);
+
+        // Remove worktree if it exists
+        let _ = self.worktree_manager.remove(&agent.id.0);
+
+        // Delete branch if it exists
+        if let Ok(repo) = git2::Repository::open(&self.repo_root) {
+            if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
+                let _ = branch.delete();
+            }
+        }
+
+        // Remove prompt and status files if they exist
+        let prompt_file = self
+            .repo_root
+            .join(STATE_DIR)
+            .join("prompts")
+            .join(format!("{}.txt", agent.id.0));
+        let status_file = self
+            .repo_root
+            .join(STATE_DIR)
+            .join("status")
+            .join(format!("{}.json", agent.id.0));
+        let _ = std::fs::remove_file(prompt_file);
+        let _ = std::fs::remove_file(status_file);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_agent_with_status(id: u128, status: AgentStatus) -> Agent {
+        let mut agent = Agent::create_test_agent(id);
+        agent.status = status;
+        agent
+    }
+
+    #[test]
+    fn test_prune_filter_all_matches_all_statuses() {
+        let agents = vec![
+            create_test_agent_with_status(1, AgentStatus::Running),
+            create_test_agent_with_status(2, AgentStatus::Completed),
+            create_test_agent_with_status(3, AgentStatus::Failed),
+            create_test_agent_with_status(4, AgentStatus::Merged),
+        ];
+
+        let filter = PruneFilter::All;
+        let matched: Vec<_> = agents
+            .iter()
+            .filter(|agent| match filter {
+                PruneFilter::All => true,
+                PruneFilter::Status(s) => agent.status == s,
+                PruneFilter::Inactive => {
+                    matches!(
+                        agent.status,
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                    )
+                }
+            })
+            .collect();
+
+        assert_eq!(matched.len(), 4);
+    }
+
+    #[test]
+    fn test_prune_filter_inactive_excludes_running() {
+        let agents = vec![
+            create_test_agent_with_status(1, AgentStatus::Running),
+            create_test_agent_with_status(2, AgentStatus::Completed),
+            create_test_agent_with_status(3, AgentStatus::Failed),
+            create_test_agent_with_status(4, AgentStatus::Merged),
+        ];
+
+        let filter = PruneFilter::Inactive;
+        let matched: Vec<_> = agents
+            .iter()
+            .filter(|agent| match filter {
+                PruneFilter::All => true,
+                PruneFilter::Status(s) => agent.status == s,
+                PruneFilter::Inactive => {
+                    matches!(
+                        agent.status,
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                    )
+                }
+            })
+            .collect();
+
+        assert_eq!(matched.len(), 3);
+        assert!(matched.iter().all(|a| a.status != AgentStatus::Running));
+    }
+
+    #[test]
+    fn test_prune_filter_status_matches_specific_status() {
+        let agents = vec![
+            create_test_agent_with_status(1, AgentStatus::Running),
+            create_test_agent_with_status(2, AgentStatus::Completed),
+            create_test_agent_with_status(3, AgentStatus::Failed),
+            create_test_agent_with_status(4, AgentStatus::Merged),
+        ];
+
+        let filter = PruneFilter::Status(AgentStatus::Completed);
+        let matched: Vec<_> = agents
+            .iter()
+            .filter(|agent| match filter {
+                PruneFilter::All => true,
+                PruneFilter::Status(s) => agent.status == s,
+                PruneFilter::Inactive => {
+                    matches!(
+                        agent.status,
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                    )
+                }
+            })
+            .collect();
+
+        assert_eq!(matched.len(), 1);
+        assert_eq!(matched[0].status, AgentStatus::Completed);
+    }
+
+    #[test]
+    fn test_prune_filter_status_merged_only() {
+        let agents = vec![
+            create_test_agent_with_status(1, AgentStatus::Merged),
+            create_test_agent_with_status(2, AgentStatus::Merged),
+            create_test_agent_with_status(3, AgentStatus::Failed),
+        ];
+
+        let filter = PruneFilter::Status(AgentStatus::Merged);
+        let matched: Vec<_> = agents
+            .iter()
+            .filter(|agent| match filter {
+                PruneFilter::All => true,
+                PruneFilter::Status(s) => agent.status == s,
+                PruneFilter::Inactive => {
+                    matches!(
+                        agent.status,
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                    )
+                }
+            })
+            .collect();
+
+        assert_eq!(matched.len(), 2);
+        assert!(matched.iter().all(|a| a.status == AgentStatus::Merged));
+    }
+
+    #[test]
+    fn test_prune_filter_inactive_with_no_inactive_agents() {
+        let agents = vec![
+            create_test_agent_with_status(1, AgentStatus::Running),
+            create_test_agent_with_status(2, AgentStatus::Running),
+        ];
+
+        let filter = PruneFilter::Inactive;
+        let matched: Vec<_> = agents
+            .iter()
+            .filter(|agent| match filter {
+                PruneFilter::All => true,
+                PruneFilter::Status(s) => agent.status == s,
+                PruneFilter::Inactive => {
+                    matches!(
+                        agent.status,
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                    )
+                }
+            })
+            .collect();
+
+        assert!(matched.is_empty());
     }
 }
