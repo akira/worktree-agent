@@ -18,6 +18,9 @@ pub enum Error {
     #[error("Tmux error: {0}")]
     Tmux(String),
 
+    #[error("External process failed: {0}")]
+    ExternalProcessFailed(String),
+
     #[error("Tmux session not found: {0}")]
     TmuxSessionNotFound(String),
 
@@ -54,6 +57,9 @@ pub enum Error {
         code: Option<i32>,
         stderr: String,
     },
+
+    #[error("Invalid UTF-8 path: {0}")]
+    InvalidUtf8Path(PathBuf),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -78,6 +84,15 @@ mod tests {
     fn test_error_display_tmux() {
         let err = Error::Tmux("session failed".to_string());
         assert_eq!(err.to_string(), "Tmux error: session failed");
+    }
+
+    #[test]
+    fn test_error_display_external_process_failed() {
+        let err = Error::ExternalProcessFailed("Failed to launch VS Code: No such file".to_string());
+        assert_eq!(
+            err.to_string(),
+            "External process failed: Failed to launch VS Code: No such file"
+        );
     }
 
     #[test]

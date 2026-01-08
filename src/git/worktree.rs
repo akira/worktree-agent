@@ -47,7 +47,9 @@ impl WorktreeManager {
             return Err(Error::WorktreeAlreadyExists(worktree_path));
         }
 
-        let path_str = worktree_path.to_str().unwrap();
+        let path_str = worktree_path
+            .to_str()
+            .ok_or_else(|| Error::InvalidUtf8Path(worktree_path.clone()))?;
         let output = self.run_git(&[WORKTREE, "add", "-b", branch, path_str, base])?;
 
         if !output.status.success() {
@@ -73,7 +75,9 @@ impl WorktreeManager {
             return Err(Error::WorktreeNotFound(worktree_path));
         }
 
-        let path_str = worktree_path.to_str().unwrap();
+        let path_str = worktree_path
+            .to_str()
+            .ok_or_else(|| Error::InvalidUtf8Path(worktree_path.clone()))?;
         self.run_git_checked(
             &[WORKTREE, "remove", "--force", path_str],
             "git worktree remove",

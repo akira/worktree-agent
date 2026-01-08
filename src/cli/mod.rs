@@ -5,3 +5,12 @@ pub mod prune;
 pub mod remove;
 pub mod spawn;
 pub mod status;
+
+/// Truncates a task string to `max_len` characters, adding "..." suffix when truncated.
+pub fn truncate_task(task: &str, max_len: usize) -> String {
+    if task.len() > max_len {
+        format!("{}...", &task[..max_len.saturating_sub(3)])
+    } else {
+        task.to_string()
+    }
+}

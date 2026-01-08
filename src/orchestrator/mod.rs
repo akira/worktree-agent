@@ -257,7 +257,7 @@ impl Orchestrator {
         std::process::Command::new("code")
             .arg(&agent.worktree_path)
             .spawn()
-            .map_err(|e| Error::Tmux(format!("Failed to open VS Code: {e}")))?;
+            .map_err(|e| Error::ExternalProcessFailed(format!("Failed to launch VS Code: {e}")))?;
         Ok(())
     }
 

@@ -60,6 +60,9 @@ impl TmuxManager {
 
     /// Create a new window in the session
     pub fn create_window(&self, name: &str, cwd: &Path) -> Result<()> {
+        let cwd_str = cwd
+            .to_str()
+            .ok_or_else(|| Error::InvalidUtf8Path(cwd.to_path_buf()))?;
         let output = self.run_tmux(&[
             "new-window",
             "-t",
@@ -67,7 +70,7 @@ impl TmuxManager {
             "-n",
             name,
             "-c",
-            cwd.to_str().unwrap_or("."),
+            cwd_str,
         ])?;
 
         if !output.status.success() {

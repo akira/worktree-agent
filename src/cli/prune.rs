@@ -1,9 +1,9 @@
+use crate::cli::truncate_task;
 use crate::orchestrator::{AgentStatus, Orchestrator, PruneFilter};
 use crate::Result;
 use tabled::{Table, Tabled};
 
 const TASK_MAX_LEN: usize = 50;
-const TASK_TRUNCATE_LEN: usize = 47;
 
 #[derive(Tabled)]
 struct PrunedAgentRow {
@@ -38,11 +38,7 @@ pub async fn run(all: bool, status: Option<AgentStatus>) -> Result<()> {
 
     let mut rows = Vec::with_capacity(pruned.len());
     for agent in &pruned {
-        let task = if agent.task.len() > TASK_MAX_LEN {
-            format!("{}...", &agent.task[..TASK_TRUNCATE_LEN])
-        } else {
-            agent.task.clone()
-        };
+        let task = truncate_task(&agent.task, TASK_MAX_LEN);
 
         rows.push(PrunedAgentRow {
             id: agent.id.0.clone(),

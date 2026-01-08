@@ -1,9 +1,9 @@
+use crate::cli::truncate_task;
 use crate::orchestrator::Orchestrator;
 use crate::Result;
 use tabled::{Table, Tabled};
 
 const TASK_MAX_LEN: usize = 50;
-const TASK_TRUNCATE_LEN: usize = 47;
 
 #[derive(Tabled)]
 struct AgentRow {
@@ -28,11 +28,7 @@ pub async fn run() -> Result<()> {
 
     let mut rows = Vec::with_capacity(agents.len());
     for a in agents {
-        let task = if a.task.len() > TASK_MAX_LEN {
-            format!("{}...", &a.task[..TASK_TRUNCATE_LEN])
-        } else {
-            a.task.clone()
-        };
+        let task = truncate_task(&a.task, TASK_MAX_LEN);
 
         rows.push(AgentRow {
             id: a.id.0.clone(),
