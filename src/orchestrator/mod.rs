@@ -261,6 +261,11 @@ impl Orchestrator {
     pub fn check_status(&mut self, id: &str) -> Result<AgentStatus> {
         let agent = self.get_agent(id)?;
 
+        // If agent is already in a terminal state, no need to check further
+        if agent.status != AgentStatus::Running {
+            return Ok(agent.status);
+        }
+
         // Check if status file exists
         let status_file = self
             .repo_root
@@ -288,6 +293,18 @@ impl Orchestrator {
             self.state.save()?;
 
             return Ok(new_status);
+        }
+
+        // No status file exists - check if tmux window is still running
+        // If the window is gone, the agent has exited (possibly crashed or user exited)
+        let window_exists = self.tmux.window_exists(&agent.tmux_window);
+        if !window_exists {
+            let agent = self.get_agent_mut(id)?;
+            agent.status = AgentStatus::Failed;
+            agent.completed_at = Some(chrono::Utc::now());
+            self.state.save()?;
+
+            return Ok(AgentStatus::Failed);
         }
 
         Ok(agent.status)

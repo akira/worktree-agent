@@ -88,8 +88,13 @@ impl Provider {
             "Bash(pwd)",
         ];
 
-        // Allow writing to the status file so agent can report completion
-        let status_file_pattern = format!("Write({})", status_file.display());
+        // Allow writing to the status directory so agent can report completion
+        // Use directory wildcard pattern to ensure permission is granted
+        let status_dir = status_file
+            .parent()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default();
+        let status_file_pattern = format!("Write({status_dir}/*)");
         let allowed_tools_arg = format!(
             "--allowedTools '{},{}'",
             default_allowed_tools.join(","),
@@ -198,7 +203,7 @@ mod tests {
     fn test_build_claude_command() {
         let worktree = PathBuf::from("/tmp/worktree");
         let prompt = PathBuf::from("/tmp/prompt.txt");
-        let status = PathBuf::from("/tmp/status.json");
+        let status = PathBuf::from("/tmp/status/agent.json");
 
         let cmd = Provider::Claude.build_command(&worktree, &prompt, &status, &[]);
 
@@ -206,14 +211,14 @@ mod tests {
         assert!(cmd.contains("cat /tmp/prompt.txt"));
         assert!(cmd.contains("claude --permission-mode acceptEdits"));
         assert!(cmd.contains("--allowedTools"));
-        assert!(cmd.contains("Write(/tmp/status.json)"));
+        assert!(cmd.contains("Write(/tmp/status/*)"));
     }
 
     #[test]
     fn test_build_claude_command_with_extra_args() {
         let worktree = PathBuf::from("/tmp/worktree");
         let prompt = PathBuf::from("/tmp/prompt.txt");
-        let status = PathBuf::from("/tmp/status.json");
+        let status = PathBuf::from("/tmp/status/agent.json");
         let extra_args = vec![
             "--verbose".to_string(),
             "--model".to_string(),
