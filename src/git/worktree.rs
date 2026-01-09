@@ -39,6 +39,47 @@ impl WorktreeManager {
         Ok(output)
     }
 
+    /// Check if a branch exists locally or remotely
+    pub fn branch_exists(&self, branch: &str) -> Result<bool> {
+        // Check local branches
+        let local = self.run_git(&["rev-parse", "--verify", &format!("refs/heads/{branch}")])?;
+        if local.status.success() {
+            return Ok(true);
+        }
+
+        // Check remote branches (origin)
+        let remote =
+            self.run_git(&["rev-parse", "--verify", &format!("refs/remotes/origin/{branch}")])?;
+        Ok(remote.status.success())
+    }
+
+    /// Create a worktree for an existing branch
+    pub fn checkout_existing(&self, id: &str, branch: &str) -> Result<PathBuf> {
+        let worktree_path = self.worktrees_dir.join(id);
+
+        if worktree_path.exists() {
+            return Err(Error::WorktreeAlreadyExists(worktree_path));
+        }
+
+        let path_str = worktree_path
+            .to_str()
+            .ok_or_else(|| Error::InvalidUtf8Path(worktree_path.clone()))?;
+
+        // Try local branch first, then remote
+        let output = self.run_git(&[WORKTREE, "add", path_str, branch])?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(Error::CommandFailed {
+                command: "git worktree add".to_string(),
+                code: output.status.code(),
+                stderr: stderr.to_string(),
+            });
+        }
+
+        Ok(worktree_path)
+    }
+
     /// Create a new worktree with a new branch based on the given base branch
     pub fn create(&self, id: &str, branch: &str, base: &str) -> Result<PathBuf> {
         let worktree_path = self.worktrees_dir.join(id);
