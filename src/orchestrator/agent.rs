@@ -45,7 +45,8 @@ pub struct Agent {
     pub status: AgentStatus,
     #[serde(default)]
     pub provider: Provider,
-    pub spawned_at: DateTime<Utc>,
+    #[serde(alias = "spawned_at")]
+    pub launched_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
 }
 
@@ -71,7 +72,7 @@ impl Agent {
             tmux_window,
             status: AgentStatus::Running,
             provider,
-            spawned_at: Utc::now(),
+            launched_at: Utc::now(),
             completed_at: None,
         }
     }

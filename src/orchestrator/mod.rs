@@ -33,7 +33,7 @@ pub enum PruneFilter {
     Inactive,
 }
 
-pub struct SpawnRequest {
+pub struct LaunchRequest {
     pub task: String,
     pub branch: Option<String>,
     pub base: Option<String>,
@@ -119,7 +119,7 @@ impl Orchestrator {
             .ok_or_else(|| Error::Git(git2::Error::from_str("HEAD is not a branch")))
     }
 
-    pub async fn spawn(&mut self, request: SpawnRequest) -> Result<AgentId> {
+    pub async fn launch(&mut self, request: LaunchRequest) -> Result<AgentId> {
         // 1. Generate ID
         let id = AgentId(self.state.next_id().to_string());
 
@@ -798,10 +798,10 @@ mod tests {
     }
 
     #[test]
-    fn test_spawn_request_fields() {
+    fn test_launch_request_fields() {
         use crate::provider::Provider;
 
-        let request = SpawnRequest {
+        let request = LaunchRequest {
             task: "Fix the bug".to_string(),
             branch: Some("fix/bug".to_string()),
             base: Some("main".to_string()),
@@ -818,10 +818,10 @@ mod tests {
     }
 
     #[test]
-    fn test_spawn_request_optional_fields() {
+    fn test_launch_request_optional_fields() {
         use crate::provider::Provider;
 
-        let request = SpawnRequest {
+        let request = LaunchRequest {
             task: "Simple task".to_string(),
             branch: None,
             base: None,
@@ -835,10 +835,10 @@ mod tests {
     }
 
     #[test]
-    fn test_spawn_request_with_different_providers() {
+    fn test_launch_request_with_different_providers() {
         use crate::provider::Provider;
 
-        let claude_request = SpawnRequest {
+        let claude_request = LaunchRequest {
             task: "Task".to_string(),
             branch: None,
             base: None,
@@ -847,7 +847,7 @@ mod tests {
         };
         assert_eq!(claude_request.provider, Provider::Claude);
 
-        let codex_request = SpawnRequest {
+        let codex_request = LaunchRequest {
             task: "Task".to_string(),
             branch: None,
             base: None,
@@ -856,7 +856,7 @@ mod tests {
         };
         assert_eq!(codex_request.provider, Provider::Codex);
 
-        let gemini_request = SpawnRequest {
+        let gemini_request = LaunchRequest {
             task: "Task".to_string(),
             branch: None,
             base: None,

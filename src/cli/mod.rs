@@ -3,7 +3,7 @@ pub mod list;
 pub mod merge;
 pub mod prune;
 pub mod remove;
-pub mod spawn;
+pub mod launch;
 pub mod status;
 pub mod worktree;
 
