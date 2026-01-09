@@ -1,5 +1,5 @@
 use crate::cli::truncate_task;
-use crate::orchestrator::Orchestrator;
+use crate::orchestrator::{AgentStatus, Orchestrator};
 use crate::Result;
 use tabled::{Table, Tabled};
 
@@ -18,7 +18,22 @@ struct AgentRow {
 }
 
 pub async fn run() -> Result<()> {
-    let orchestrator = Orchestrator::new()?;
+    let mut orchestrator = Orchestrator::new()?;
+
+    // Collect agent IDs that need status refresh (those currently showing as Running)
+    let running_ids: Vec<String> = orchestrator
+        .list()
+        .iter()
+        .filter(|a| a.status == AgentStatus::Running)
+        .map(|a| a.id.0.clone())
+        .collect();
+
+    // Refresh status for running agents (checks status file and tmux window existence)
+    for id in &running_ids {
+        let _ = orchestrator.check_status(id);
+    }
+
+    // Now get the updated list
     let agents = orchestrator.list();
 
     if agents.is_empty() {
