@@ -33,6 +33,12 @@ pub enum WorktreeCommands {
 
     /// Prune stale worktree references
     Prune,
+
+    /// Switch to a worktree directory (prints cd command to eval)
+    Switch {
+        /// Worktree ID, branch name, or agent ID
+        name: String,
+    },
 }
 
 #[derive(Tabled)]
@@ -74,6 +80,7 @@ pub async fn run(command: WorktreeCommands) -> Result<()> {
         WorktreeCommands::Add { branch, base, path } => run_add(branch, base, path).await,
         WorktreeCommands::Remove { name } => run_remove(name).await,
         WorktreeCommands::Prune => run_prune().await,
+        WorktreeCommands::Switch { name } => run_switch(name).await,
     }
 }
 
@@ -179,4 +186,39 @@ async fn run_prune() -> Result<()> {
     println!("Pruned stale worktree references.");
 
     Ok(())
+}
+
+async fn run_switch(name: String) -> Result<()> {
+    let repo_root = get_repo_root()?;
+    let worktrees_dir = repo_root.join(WORKTREES_DIR);
+    let manager = WorktreeManager::new(&repo_root, &worktrees_dir);
+
+    let worktrees = manager.list()?;
+
+    // Try to find worktree by exact ID match first
+    let direct_path = worktrees_dir.join(&name);
+    if direct_path.exists() {
+        println!("cd {}", direct_path.display());
+        return Ok(());
+    }
+
+    // Try to find by branch name
+    for wt in &worktrees {
+        if wt.branch == name || wt.branch.ends_with(&format!("/{name}")) {
+            println!("cd {}", wt.path.display());
+            return Ok(());
+        }
+    }
+
+    // Try partial match on path
+    for wt in &worktrees {
+        if let Some(file_name) = wt.path.file_name() {
+            if file_name.to_string_lossy() == name {
+                println!("cd {}", wt.path.display());
+                return Ok(());
+            }
+        }
+    }
+
+    Err(crate::Error::WorktreeNotFound(PathBuf::from(name)))
 }
