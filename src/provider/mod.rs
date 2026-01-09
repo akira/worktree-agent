@@ -115,10 +115,10 @@ impl Provider {
             format!(" {}", extra_args.join(" "))
         };
 
-        // Codex CLI uses --approval-mode full-auto for autonomous operation
+        // Codex CLI uses --full-auto for autonomous sandboxed execution
         // and accepts prompt via stdin similar to Claude
         format!(
-            "cd {} && cat {} | codex --approval-mode full-auto{extra_args_str}",
+            "cd {} && cat {} | codex --full-auto{extra_args_str}",
             worktree_path.display(),
             prompt_file.display()
         )
@@ -235,7 +235,7 @@ mod tests {
 
         assert!(cmd.contains("cd /tmp/worktree"));
         assert!(cmd.contains("cat /tmp/prompt.txt"));
-        assert!(cmd.contains("codex --approval-mode full-auto"));
+        assert!(cmd.contains("codex --full-auto"));
     }
 
     #[test]
