@@ -107,6 +107,15 @@ enum Commands {
         #[command(subcommand)]
         command: WorktreeCommands,
     },
+
+    /// Switch to a worktree directory
+    Switch {
+        /// Worktree ID, branch name, or agent ID
+        name: String,
+    },
+
+    /// Print shell function for wta integration
+    Init,
 }
 
 #[tokio::main]
@@ -143,6 +152,12 @@ async fn main() -> anyhow::Result<()> {
         Commands::Prune { all, status } => cli::prune::run(all, status).await?,
 
         Commands::Worktree { command } => cli::worktree::run(command).await?,
+
+        Commands::Switch { name } => {
+            cli::worktree::run(WorktreeCommands::Switch { name }).await?
+        }
+
+        Commands::Init => cli::init::run().await?,
     }
 
     Ok(())
