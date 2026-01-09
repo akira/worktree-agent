@@ -1,4 +1,4 @@
-use crate::orchestrator::{Orchestrator, SpawnRequest};
+use crate::orchestrator::{Orchestrator, LaunchRequest};
 use crate::provider::Provider;
 use crate::Result;
 
@@ -12,7 +12,7 @@ pub async fn run(
 ) -> Result<()> {
     let mut orchestrator = Orchestrator::new()?;
 
-    let request = SpawnRequest {
+    let request = LaunchRequest {
         task: task.clone(),
         branch,
         base,
@@ -20,13 +20,13 @@ pub async fn run(
         provider_args,
     };
 
-    let id = orchestrator.spawn(request).await?;
+    let id = orchestrator.launch(request).await?;
 
     if code {
         orchestrator.open_vscode(&id.to_string())?;
     }
 
-    println!("Spawned agent {id} on branch wta/{id}");
+    println!("Launched agent {id} on branch wta/{id}");
     println!("Provider: {provider}");
     println!("Task: {task}");
     println!();

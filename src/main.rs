@@ -8,7 +8,7 @@ use worktree_agent::Provider;
 #[derive(Parser)]
 #[command(
     name = "wta",
-    about = "Worktree Agent - spawn Claude Code agents in isolated git worktrees"
+    about = "Worktree Agent - launch Claude Code agents in isolated git worktrees"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -17,8 +17,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Spawn a new agent with a task
-    Spawn {
+    /// Launch a new agent with a task
+    Launch {
         /// The task for the agent to perform
         #[arg(short, long)]
         task: String,
@@ -117,14 +117,14 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Spawn {
+        Commands::Launch {
             task,
             branch,
             base,
             provider,
             code,
             provider_args,
-        } => cli::spawn::run(task, branch, base, provider, code, provider_args).await?,
+        } => cli::launch::run(task, branch, base, provider, code, provider_args).await?,
 
         Commands::List => cli::list::run().await?,
 

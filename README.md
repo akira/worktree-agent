@@ -1,6 +1,6 @@
 # Worktree Agent (WTA)
 
-A Rust CLI tool for spawning Claude Code AI agents in isolated Git worktrees, enabling parallel autonomous task execution with clean branch management.
+A Rust CLI tool for launching Claude Code AI agents in isolated Git worktrees, enabling parallel autonomous task execution with clean branch management.
 
 ## Overview
 
@@ -18,17 +18,17 @@ cargo install --path .
 
 ## Usage
 
-### Spawn an Agent
+### Launch an Agent
 
 ```bash
-# Basic spawn with auto-generated branch name
-wta spawn --task "Implement user authentication"
+# Basic launch with auto-generated branch name
+wta launch --task "Implement user authentication"
 
 # With custom branch name
-wta spawn --task "Add dark mode" --branch feature/dark-mode
+wta launch --task "Add dark mode" --branch feature/dark-mode
 
 # From a specific base branch
-wta spawn --task "Fix login bug" --base develop
+wta launch --task "Fix login bug" --base develop
 ```
 
 ### Monitor Agents
@@ -91,7 +91,7 @@ wta prune --status merged
 ## Agent Lifecycle
 
 ```
-Spawned → Running → Completed/Failed → Merged/Removed
+Launched → Running → Completed/Failed → Merged/Removed
 ```
 
 1. **Running**: Agent is actively working in its tmux window
