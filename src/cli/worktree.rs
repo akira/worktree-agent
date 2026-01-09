@@ -1,8 +1,11 @@
 use crate::git::WorktreeManager;
 use crate::Result;
 use clap::Subcommand;
+use std::io::IsTerminal;
 use std::path::PathBuf;
 use tabled::{Table, Tabled};
+
+const WTA_DIRECTIVE_FILE_ENV: &str = "WTA_DIRECTIVE_FILE";
 
 const WORKTREES_DIR: &str = ".worktrees";
 
@@ -195,18 +198,39 @@ async fn run_switch(name: String) -> Result<()> {
 
     let worktrees = manager.list()?;
 
+    // Helper to output the cd command via directive file or instructions
+    let output_switch = |path: &std::path::Path| -> Result<()> {
+        let cd_cmd = format!("cd '{}'", path.display());
+
+        // Check if we have a directive file to write to (shell function integration)
+        if let Ok(directive_file) = std::env::var(WTA_DIRECTIVE_FILE_ENV) {
+            std::fs::write(&directive_file, format!("{cd_cmd}\n"))?;
+            println!("Switched to worktree: {}", path.display());
+        } else if std::io::stdout().is_terminal() {
+            // Running interactively without shell function - show instructions
+            eprintln!("To switch to this worktree, run:");
+            eprintln!();
+            eprintln!("  {cd_cmd}");
+            eprintln!();
+            eprintln!("Tip: Add the wta shell function to enable direct switching.");
+            eprintln!("Run: wta init --help");
+        } else {
+            // Output is being captured (e.g., via eval) - just print cd command
+            println!("{cd_cmd}");
+        }
+        Ok(())
+    };
+
     // Try to find worktree by exact ID match first
     let direct_path = worktrees_dir.join(&name);
     if direct_path.exists() {
-        println!("cd {}", direct_path.display());
-        return Ok(());
+        return output_switch(&direct_path);
     }
 
     // Try to find by branch name
     for wt in &worktrees {
         if wt.branch == name || wt.branch.ends_with(&format!("/{name}")) {
-            println!("cd {}", wt.path.display());
-            return Ok(());
+            return output_switch(&wt.path);
         }
     }
 
@@ -214,8 +238,7 @@ async fn run_switch(name: String) -> Result<()> {
     for wt in &worktrees {
         if let Some(file_name) = wt.path.file_name() {
             if file_name.to_string_lossy() == name {
-                println!("cd {}", wt.path.display());
-                return Ok(());
+                return output_switch(&wt.path);
             }
         }
     }
