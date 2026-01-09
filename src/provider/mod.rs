@@ -120,10 +120,10 @@ impl Provider {
             format!(" {}", extra_args.join(" "))
         };
 
-        // Codex CLI uses --full-auto for autonomous sandboxed execution
-        // and accepts prompt via stdin similar to Claude
+        // Codex CLI uses `codex exec -` to read prompt from stdin
+        // --full-auto enables autonomous sandboxed execution
         format!(
-            "cd {} && cat {} | codex --full-auto{extra_args_str}",
+            "cd {} && cat {} | codex exec --full-auto{extra_args_str} -",
             worktree_path.display(),
             prompt_file.display()
         )
@@ -240,7 +240,8 @@ mod tests {
 
         assert!(cmd.contains("cd /tmp/worktree"));
         assert!(cmd.contains("cat /tmp/prompt.txt"));
-        assert!(cmd.contains("codex --full-auto"));
+        assert!(cmd.contains("codex exec --full-auto"));
+        assert!(cmd.ends_with(" -"));
     }
 
     #[test]
@@ -253,6 +254,7 @@ mod tests {
         let cmd = Provider::Codex.build_command(&worktree, &prompt, &status, &extra_args);
 
         assert!(cmd.contains("--model o3"));
+        assert!(cmd.ends_with(" -"));
     }
 
     #[test]
