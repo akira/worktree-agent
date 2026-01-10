@@ -287,8 +287,8 @@ impl Orchestrator {
                 _ => return Ok(agent.status),
             };
 
-            // Kill tmux window since agent is done
-            let _ = self.tmux.kill_window(&agent.tmux_window);
+            // Note: We do NOT kill the tmux window here - leave it running so the user
+            // can inspect the final state. Window will be killed when user removes/prunes.
 
             // Update agent status
             let agent = self.get_agent_mut(id)?;
