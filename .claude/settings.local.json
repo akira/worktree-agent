@@ -8,7 +8,9 @@
       "Edit",
       "Bash(cargo fmt:*)",
       "Bash(git add:*)",
-      "Bash(codex --help:*)"
+      "Bash(codex --help:*)",
+      "Bash(ls:*)",
+      "Bash(cargo run:*)"
     ]
   }
 }

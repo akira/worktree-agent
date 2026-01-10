@@ -2,6 +2,7 @@ pub mod attach;
 pub mod init;
 pub mod list;
 pub mod merge;
+pub mod pr;
 pub mod prune;
 pub mod remove;
 pub mod launch;

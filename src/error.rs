@@ -60,6 +60,9 @@ pub enum Error {
 
     #[error("Invalid UTF-8 path: {0}")]
     InvalidUtf8Path(PathBuf),
+
+    #[error("PR creation failed: {0}")]
+    PrFailed(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

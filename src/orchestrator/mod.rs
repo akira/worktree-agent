@@ -47,6 +47,10 @@ pub struct MergeResult {
     pub conflicts: Vec<PathBuf>,
 }
 
+pub struct PrResult {
+    pub url: String,
+}
+
 pub struct Orchestrator {
     state: State,
     repo_root: PathBuf,
@@ -364,6 +368,64 @@ impl Orchestrator {
         }
 
         Ok(result)
+    }
+
+    pub async fn create_pr(
+        &mut self,
+        id: &str,
+        title: Option<String>,
+        body: Option<String>,
+        force: bool,
+    ) -> Result<PrResult> {
+        let agent = self.get_agent(id)?;
+
+        if agent.status == AgentStatus::Running && !force {
+            return Err(Error::AgentStillRunning(id.to_string()));
+        }
+
+        let branch = agent.branch.clone();
+        let base_branch = agent.base_branch.clone();
+        let task = agent.task.clone();
+
+        // Push branch to remote
+        let push_output = std::process::Command::new("git")
+            .args(["push", "-u", "origin", &branch])
+            .current_dir(&self.repo_root)
+            .output()?;
+
+        if !push_output.status.success() {
+            let stderr = String::from_utf8_lossy(&push_output.stderr);
+            return Err(Error::PrFailed(format!("Failed to push branch: {stderr}")));
+        }
+
+        // Build gh pr create command
+        let pr_title = title.unwrap_or_else(|| task.clone());
+        let pr_body = body.unwrap_or_else(|| task.clone());
+
+        let output = std::process::Command::new("gh")
+            .args([
+                "pr",
+                "create",
+                "--base",
+                &base_branch,
+                "--head",
+                &branch,
+                "--title",
+                &pr_title,
+                "--body",
+                &pr_body,
+            ])
+            .current_dir(&self.repo_root)
+            .output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(Error::PrFailed(format!("Failed to create PR: {stderr}")));
+        }
+
+        let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        Ok(PrResult { url })
     }
 
     pub async fn remove(&mut self, id: &str, force: bool) -> Result<()> {

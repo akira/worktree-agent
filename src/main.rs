@@ -81,6 +81,24 @@ enum Commands {
         force: bool,
     },
 
+    /// Create a GitHub PR for agent's work
+    Pr {
+        /// Agent ID
+        id: String,
+
+        /// PR title (defaults to task description)
+        #[arg(short, long)]
+        title: Option<String>,
+
+        /// PR body (defaults to task description)
+        #[arg(short, long)]
+        body: Option<String>,
+
+        /// Force PR creation even if agent is still running
+        #[arg(short, long)]
+        force: bool,
+    },
+
     /// Remove agent, kill window, and cleanup worktree
     Remove {
         /// Agent ID
@@ -146,6 +164,13 @@ async fn main() -> anyhow::Result<()> {
             strategy,
             force,
         } => cli::merge::run(id, strategy, force).await?,
+
+        Commands::Pr {
+            id,
+            title,
+            body,
+            force,
+        } => cli::pr::run(id, title, body, force).await?,
 
         Commands::Remove { id, force } => cli::remove::run(id, force).await?,
 
