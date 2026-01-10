@@ -322,6 +322,14 @@ impl Orchestrator {
             return Err(Error::AgentStillRunning(id.to_string()));
         }
 
+        // Remove worktree BEFORE merge - git checkout fails if branch is checked out in a worktree
+        // Ignore WorktreeNotFound (may have been manually removed), but propagate other errors
+        match self.worktree_manager.remove(id) {
+            Ok(()) => {}
+            Err(Error::WorktreeNotFound(_)) => {}
+            Err(e) => return Err(e),
+        }
+
         let result = crate::git::merge::merge_branch(
             &self.repo_root,
             &agent.branch,
@@ -330,8 +338,6 @@ impl Orchestrator {
         )?;
 
         if result.success {
-            // Clean up: remove worktree and delete branch
-            let _ = self.worktree_manager.remove(id);
 
             let repo = git2::Repository::open(&self.repo_root)?;
             if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
