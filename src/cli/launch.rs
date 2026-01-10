@@ -1,4 +1,4 @@
-use crate::orchestrator::{Orchestrator, LaunchRequest};
+use crate::orchestrator::{LaunchRequest, Orchestrator};
 use crate::provider::Provider;
 use crate::Result;
 

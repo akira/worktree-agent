@@ -1,7 +1,12 @@
 use crate::orchestrator::Orchestrator;
 use crate::Result;
 
-pub async fn run(id: String, title: Option<String>, body: Option<String>, force: bool) -> Result<()> {
+pub async fn run(
+    id: String,
+    title: Option<String>,
+    body: Option<String>,
+    force: bool,
+) -> Result<()> {
     let mut orchestrator = Orchestrator::new()?;
 
     // Check status (updates from status file if exists)
