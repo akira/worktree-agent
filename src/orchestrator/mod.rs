@@ -161,9 +161,7 @@ impl Orchestrator {
                     Some(b) => b.clone(),
                     None => self.get_current_branch()?,
                 };
-                let worktree_path =
-                    self.worktree_manager
-                        .create(&id.0, &branch, &base_branch)?;
+                let worktree_path = self.worktree_manager.create(&id.0, &branch, &base_branch)?;
                 (branch, base_branch, worktree_path)
             }
         };
@@ -297,8 +295,8 @@ impl Orchestrator {
                 _ => return Ok(agent.status),
             };
 
-            // Kill tmux window since agent is done
-            let _ = self.tmux.kill_window(&agent.tmux_window);
+            // Note: We do NOT kill the tmux window here - leave it running so the user
+            // can inspect the final state. Window will be killed when user removes/prunes.
 
             // Update agent status
             let agent = self.get_agent_mut(id)?;
@@ -352,7 +350,6 @@ impl Orchestrator {
         )?;
 
         if result.success {
-
             let repo = git2::Repository::open(&self.repo_root)?;
             if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
                 let _ = branch.delete();

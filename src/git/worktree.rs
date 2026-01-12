@@ -48,8 +48,11 @@ impl WorktreeManager {
         }
 
         // Check remote branches (origin)
-        let remote =
-            self.run_git(&["rev-parse", "--verify", &format!("refs/remotes/origin/{branch}")])?;
+        let remote = self.run_git(&[
+            "rev-parse",
+            "--verify",
+            &format!("refs/remotes/origin/{branch}"),
+        ])?;
         Ok(remote.status.success())
     }
 
