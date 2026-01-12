@@ -51,6 +51,16 @@ pub struct PrResult {
     pub url: String,
 }
 
+pub struct PrSummary {
+    pub title: String,
+    pub body: String,
+}
+
+const PR_SUMMARY_PROMPT: &str = r#"Generate a GitHub PR title and description from this task. Respond with ONLY a JSON object, no markdown code blocks:
+{"title": "short title under 72 chars", "body": "markdown description with ## Summary section"}
+
+Task: "#;
+
 pub struct Orchestrator {
     state: State,
     repo_root: PathBuf,
@@ -370,6 +380,42 @@ impl Orchestrator {
         Ok(result)
     }
 
+    /// Generate a PR title and body using Claude CLI
+    fn generate_pr_summary(&self, task: &str) -> Option<PrSummary> {
+        use std::io::Write;
+        use std::process::Stdio;
+
+        let prompt = format!("{PR_SUMMARY_PROMPT}{task}");
+
+        let mut child = std::process::Command::new("claude")
+            .args(["--print", "--output-format", "text"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()?;
+
+        child.stdin.take()?.write_all(prompt.as_bytes()).ok()?;
+        let output = child.wait_with_output().ok()?;
+
+        if !output.status.success() {
+            return None;
+        }
+
+        let response = String::from_utf8_lossy(&output.stdout);
+
+        // Try to parse JSON from response (may have extra text around it)
+        let json_start = response.find('{')?;
+        let json_end = response.rfind('}')? + 1;
+        let json_str = &response[json_start..json_end];
+
+        let parsed: serde_json::Value = serde_json::from_str(json_str).ok()?;
+        let title = parsed.get("title")?.as_str()?.to_string();
+        let body = parsed.get("body")?.as_str()?.to_string();
+
+        Some(PrSummary { title, body })
+    }
+
     pub async fn create_pr(
         &mut self,
         id: &str,
@@ -387,6 +433,31 @@ impl Orchestrator {
         let base_branch = agent.base_branch.clone();
         let task = agent.task.clone();
 
+        // Generate AI summary if title or body not provided
+        let (pr_title, pr_body) = match (&title, &body) {
+            (Some(t), Some(b)) => (t.clone(), b.clone()),
+            _ => {
+                // Try to generate AI summary
+                if let Some(summary) = self.generate_pr_summary(&task) {
+                    (
+                        title.unwrap_or(summary.title),
+                        body.unwrap_or(summary.body),
+                    )
+                } else {
+                    // Fallback: truncate task for title, use full task for body
+                    let fallback_title = if task.len() > 72 {
+                        format!("{}...", &task[..69])
+                    } else {
+                        task.clone()
+                    };
+                    (
+                        title.unwrap_or(fallback_title),
+                        body.unwrap_or(task.clone()),
+                    )
+                }
+            }
+        };
+
         // Push branch to remote
         let push_output = std::process::Command::new("git")
             .args(["push", "-u", "origin", &branch])
@@ -397,10 +468,6 @@ impl Orchestrator {
             let stderr = String::from_utf8_lossy(&push_output.stderr);
             return Err(Error::PrFailed(format!("Failed to push branch: {stderr}")));
         }
-
-        // Build gh pr create command
-        let pr_title = title.unwrap_or_else(|| task.clone());
-        let pr_body = body.unwrap_or_else(|| task.clone());
 
         let output = std::process::Command::new("gh")
             .args([

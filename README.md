@@ -63,6 +63,24 @@ wta merge <id> --strategy squash
 wta merge <id> --force
 ```
 
+### Create Pull Requests
+
+```bash
+# Create PR with AI-generated title and description
+wta pr <id>
+
+# With custom title (AI generates description)
+wta pr <id> --title "Add user authentication"
+
+# With custom title and body
+wta pr <id> --title "Add auth" --body "Implements OAuth2 flow"
+
+# Force PR creation even if agent is still running
+wta pr <id> --force
+```
+
+The `pr` command pushes the branch to origin and creates a GitHub PR using the `gh` CLI. When title or body are not specified, it uses Claude to generate a concise title and markdown description from the task.
+
 ### Remove Agents
 
 ```bash
@@ -117,6 +135,7 @@ WTA creates the following directories in your repository:
 - Git
 - tmux
 - Claude Code CLI (`claude`)
+- GitHub CLI (`gh`) - for `wta pr` command
 
 ## License
 
