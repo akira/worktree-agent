@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# Pre-commit hook to format Rust code using cargo fmt
+# If formatting changes are needed, they will be applied automatically.
+# If cargo fmt fails, the commit will be aborted.
+
+# Run cargo fmt --all to format all code
+if ! cargo fmt --all 2>/dev/null; then
+    echo "Error: cargo fmt --all failed"
+    echo "Please ensure cargo and rustfmt are installed"
+    exit 1
+fi
+
+# Check if there are any formatting changes that were just made
+if ! git diff --quiet; then
+    echo "Code was reformatted by cargo fmt."
+    echo "The formatting changes have been applied but NOT staged."
+    echo "Please review the changes, stage them with 'git add', and commit again."
+    exit 1
+fi
+
+# Also check staged files for any remaining formatting issues
+if ! cargo fmt --all -- --check 2>/dev/null; then
+    echo "Error: Some staged files have formatting issues."
+    echo "Running 'cargo fmt --all' to fix them..."
+    cargo fmt --all
+    echo "Files have been formatted. Please stage the changes and commit again."
+    exit 1
+fi
+
+exit 0

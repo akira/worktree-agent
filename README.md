@@ -149,6 +149,20 @@ WTA creates the following directories in your repository:
 - GitHub CLI (`gh`) - for `wta pr` command
 - [lumen](https://github.com/jnsahaj/lumen) (optional) - for interactive diffs in `wta diff`
 
+## Development
+
+### Git Hooks Setup
+
+This project uses git hooks to ensure code quality. To enable them, run:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This configures git to use the `.githooks/` directory for hooks. The following hooks are available:
+
+- **pre-commit**: Runs `cargo fmt --all` to format code before committing. If formatting changes are needed, they are applied automatically and the commit is aborted so you can review and stage the changes.
+
 ## License
 
 MIT
