@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte';
   import DiffViewer from './DiffViewer.svelte';
 
   let { agent, onClose, onRefresh } = $props();
@@ -141,10 +142,8 @@
   }
 
   // Fetch diff on mount
-  $effect(() => {
-    if (agent) {
-      fetchDiff();
-    }
+  onMount(() => {
+    fetchDiff();
   });
 
   function formatDate(dateStr) {
