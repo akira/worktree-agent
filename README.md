@@ -92,6 +92,31 @@ wta diff <id>
 
 The `diff` command shows changes between the agent's branch and its base branch. It uses [lumen](https://github.com/jnsahaj/lumen)'s interactive side-by-side viewer if available, otherwise falls back to `git diff`.
 
+### Web Dashboard
+
+```bash
+# Start the dashboard server
+wta dashboard
+
+# With custom port
+wta dashboard --port 8080
+
+# Auto-open browser
+wta dashboard --open
+```
+
+The dashboard provides a Kanban board UI at `http://localhost:3847` where you can:
+- View all agents organized by status (Running, Completed, Failed, Merged)
+- Click on any task to view the PR diff
+- Merge changes with different strategies (merge, rebase, squash)
+- Create GitHub PRs
+- Remove agents
+
+**First-time setup:** Build the dashboard before running:
+```bash
+cd dashboard && npm install && npm run build
+```
+
 ### Remove Agents
 
 ```bash
@@ -148,6 +173,7 @@ WTA creates the following directories in your repository:
 - Claude Code CLI (`claude`)
 - GitHub CLI (`gh`) - for `wta pr` command
 - [lumen](https://github.com/jnsahaj/lumen) (optional) - for interactive diffs in `wta diff`
+- Node.js (optional) - for building the web dashboard
 
 ## Development
 
