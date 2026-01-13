@@ -76,7 +76,7 @@ pub async fn run_server(port: Option<u16>, open_browser: bool) -> Result<()> {
     let app = Router::new()
         .nest("/api", api_routes)
         .route("/", get(serve_index))
-        .route("/{*path}", get(serve_static))
+        .route("/*path", get(serve_static))
         .layer(cors)
         .with_state(state);
 
