@@ -436,10 +436,7 @@ impl Orchestrator {
             _ => {
                 // Try to generate AI summary
                 if let Some(summary) = self.generate_pr_summary(&task) {
-                    (
-                        title.unwrap_or(summary.title),
-                        body.unwrap_or(summary.body),
-                    )
+                    (title.unwrap_or(summary.title), body.unwrap_or(summary.body))
                 } else {
                     // Fallback: truncate task for title, use full task for body
                     let fallback_title = if task.len() > 72 {

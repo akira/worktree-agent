@@ -1,5 +1,7 @@
 # Worktree Agent (WTA)
 
+![Worktree Agent Banner](assets/banner.jpg)
+
 A Rust CLI tool for launching Claude Code AI agents in isolated Git worktrees, enabling parallel autonomous task execution with clean branch management.
 
 ## Overview
