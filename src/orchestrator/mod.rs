@@ -151,9 +151,7 @@ impl Orchestrator {
                     Some(b) => b.clone(),
                     None => self.get_current_branch()?,
                 };
-                let worktree_path =
-                    self.worktree_manager
-                        .create(&id.0, &branch, &base_branch)?;
+                let worktree_path = self.worktree_manager.create(&id.0, &branch, &base_branch)?;
                 (branch, base_branch, worktree_path)
             }
         };
@@ -342,7 +340,6 @@ impl Orchestrator {
         )?;
 
         if result.success {
-
             let repo = git2::Repository::open(&self.repo_root)?;
             if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
                 let _ = branch.delete();

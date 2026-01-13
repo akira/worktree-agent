@@ -178,9 +178,7 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Worktree { command } => cli::worktree::run(command).await?,
 
-        Commands::Switch { name } => {
-            cli::worktree::run(WorktreeCommands::Switch { name }).await?
-        }
+        Commands::Switch { name } => cli::worktree::run(WorktreeCommands::Switch { name }).await?,
 
         Commands::Init => cli::init::run().await?,
     }

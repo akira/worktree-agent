@@ -1,11 +1,11 @@
 pub mod attach;
 pub mod init;
+pub mod launch;
 pub mod list;
 pub mod merge;
 pub mod pr;
 pub mod prune;
 pub mod remove;
-pub mod launch;
 pub mod status;
 pub mod worktree;
 
