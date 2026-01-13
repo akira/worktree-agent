@@ -1,6 +1,9 @@
 use crate::cli::truncate_task;
 use crate::orchestrator::{AgentStatus, Orchestrator};
 use crate::Result;
+use colored::Colorize;
+use tabled::settings::style::Style;
+use tabled::settings::Padding;
 use tabled::{Table, Tabled};
 
 const TASK_MAX_LEN: usize = 50;
@@ -15,6 +18,15 @@ struct AgentRow {
     status: String,
     #[tabled(rename = "TASK")]
     task: String,
+}
+
+fn colorize_status(status: &AgentStatus) -> String {
+    match status {
+        AgentStatus::Running => status.to_string().bright_blue().bold().to_string(),
+        AgentStatus::Completed => status.to_string().magenta().to_string(),
+        AgentStatus::Failed => status.to_string().red().bold().to_string(),
+        AgentStatus::Merged => status.to_string().green().to_string(),
+    }
 }
 
 pub async fn run() -> Result<()> {
@@ -46,14 +58,17 @@ pub async fn run() -> Result<()> {
         let task = truncate_task(&a.task, TASK_MAX_LEN);
 
         rows.push(AgentRow {
-            id: a.id.0.clone(),
-            branch: a.branch.clone(),
-            status: a.status.to_string(),
-            task,
+            id: a.id.0.bright_white().to_string(),
+            branch: a.branch.cyan().to_string(),
+            status: colorize_status(&a.status),
+            task: task.white().to_string(),
         });
     }
 
-    let table = Table::new(rows).to_string();
+    let table = Table::new(rows)
+        .with(Style::rounded())
+        .with(Padding::new(1, 1, 0, 0))
+        .to_string();
     println!("{table}");
 
     Ok(())
