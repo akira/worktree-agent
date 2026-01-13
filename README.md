@@ -112,10 +112,7 @@ The dashboard provides a Kanban board UI at `http://localhost:3847` where you ca
 - Create GitHub PRs
 - Remove agents
 
-**First-time setup:** Build the dashboard before running:
-```bash
-cd dashboard && npm install && npm run build
-```
+The dashboard assets are embedded in the binary, so no additional setup is required.
 
 ### Remove Agents
 
@@ -173,7 +170,6 @@ WTA creates the following directories in your repository:
 - Claude Code CLI (`claude`)
 - GitHub CLI (`gh`) - for `wta pr` command
 - [lumen](https://github.com/jnsahaj/lumen) (optional) - for interactive diffs in `wta diff`
-- Node.js (optional) - for building the web dashboard
 
 ## Development
 
