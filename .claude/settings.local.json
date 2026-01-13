@@ -15,7 +15,8 @@
       "Bash(find:*)",
       "Bash(npm install)",
       "Bash(npm run build:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(git rm:*)"
     ]
   }
 }
