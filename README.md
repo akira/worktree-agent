@@ -81,6 +81,15 @@ wta pr <id> --force
 
 The `pr` command pushes the branch to origin and creates a GitHub PR using the `gh` CLI. When title or body are not specified, it uses Claude to generate a concise title and markdown description from the task.
 
+### View Diffs
+
+```bash
+# View diff between agent's branch and base branch
+wta diff <id>
+```
+
+The `diff` command shows changes between the agent's branch and its base branch. It uses [lumen](https://github.com/jnsahaj/lumen)'s interactive side-by-side viewer if available, otherwise falls back to `git diff`.
+
 ### Remove Agents
 
 ```bash
@@ -136,6 +145,7 @@ WTA creates the following directories in your repository:
 - tmux
 - Claude Code CLI (`claude`)
 - GitHub CLI (`gh`) - for `wta pr` command
+- [lumen](https://github.com/jnsahaj/lumen) (optional) - for interactive diffs in `wta diff`
 
 ## License
 

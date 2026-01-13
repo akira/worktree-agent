@@ -1,9 +1,15 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use tracing_subscriber::{fmt, EnvFilter};
 use worktree_agent::cli;
 use worktree_agent::cli::worktree::WorktreeCommands;
 use worktree_agent::orchestrator::{AgentStatus, MergeStrategy};
 use worktree_agent::Provider;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum DiffViewer {
+    Lumen,
+    Git,
+}
 
 #[derive(Parser)]
 #[command(
@@ -99,6 +105,16 @@ enum Commands {
         force: bool,
     },
 
+    /// View diff using lumen (interactive diff viewer)
+    Diff {
+        /// Agent ID
+        id: String,
+
+        /// Diff viewer to use (lumen or git)
+        #[arg(long, default_value = "lumen")]
+        viewer: DiffViewer,
+    },
+
     /// Remove agent, kill window, and cleanup worktree
     Remove {
         /// Agent ID
@@ -171,6 +187,8 @@ async fn main() -> anyhow::Result<()> {
             body,
             force,
         } => cli::pr::run(id, title, body, force).await?,
+
+        Commands::Diff { id, viewer } => cli::diff::run(id, viewer == DiffViewer::Git).await?,
 
         Commands::Remove { id, force } => cli::remove::run(id, force).await?,
 

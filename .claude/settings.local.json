@@ -10,7 +10,9 @@
       "Bash(git add:*)",
       "Bash(codex --help:*)",
       "Bash(ls:*)",
-      "Bash(cargo run:*)"
+      "Bash(cargo run:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(find:*)"
     ]
   }
 }
