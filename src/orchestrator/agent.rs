@@ -11,6 +11,7 @@ pub enum AgentStatus {
     Completed,
     Failed,
     Merged,
+    Conflict,
 }
 
 impl std::fmt::Display for AgentStatus {
@@ -20,6 +21,7 @@ impl std::fmt::Display for AgentStatus {
             AgentStatus::Completed => write!(f, "completed"),
             AgentStatus::Failed => write!(f, "failed"),
             AgentStatus::Merged => write!(f, "merged"),
+            AgentStatus::Conflict => write!(f, "conflict"),
         }
     }
 }
@@ -102,6 +104,7 @@ mod tests {
         assert_eq!(AgentStatus::Completed.to_string(), "completed");
         assert_eq!(AgentStatus::Failed.to_string(), "failed");
         assert_eq!(AgentStatus::Merged.to_string(), "merged");
+        assert_eq!(AgentStatus::Conflict.to_string(), "conflict");
     }
 
     #[test]

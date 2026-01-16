@@ -26,6 +26,7 @@ fn colorize_status(status: &AgentStatus) -> String {
         AgentStatus::Completed => status.to_string().magenta().to_string(),
         AgentStatus::Failed => status.to_string().red().bold().to_string(),
         AgentStatus::Merged => status.to_string().green().to_string(),
+        AgentStatus::Conflict => status.to_string().yellow().bold().to_string(),
     }
 }
 
