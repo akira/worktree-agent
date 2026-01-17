@@ -17,6 +17,8 @@ pub enum Provider {
     Deepagents,
     /// Amp Code CLI
     Amp,
+    /// Opencode CLI
+    Opencode,
 }
 
 impl std::fmt::Display for Provider {
@@ -27,6 +29,7 @@ impl std::fmt::Display for Provider {
             Provider::Gemini => write!(f, "gemini"),
             Provider::Deepagents => write!(f, "deepagents"),
             Provider::Amp => write!(f, "amp"),
+            Provider::Opencode => write!(f, "opencode"),
         }
     }
 }
@@ -40,6 +43,7 @@ impl Provider {
             Provider::Gemini => "gemini",
             Provider::Deepagents => "deepagents",
             Provider::Amp => "amp",
+            Provider::Opencode => "opencode",
         }
     }
 
@@ -67,6 +71,9 @@ impl Provider {
                 self.build_deepagents_command(worktree_path, prompt_file, extra_args)
             }
             Provider::Amp => self.build_amp_command(worktree_path, prompt_file, extra_args),
+            Provider::Opencode => {
+                self.build_opencode_command(worktree_path, prompt_file, extra_args)
+            }
         }
     }
 
@@ -203,6 +210,26 @@ impl Provider {
             prompt_file.display()
         )
     }
+
+    fn build_opencode_command(
+        &self,
+        worktree_path: &Path,
+        prompt_file: &Path,
+        extra_args: &[String],
+    ) -> String {
+        let extra_args_str = if extra_args.is_empty() {
+            String::new()
+        } else {
+            format!(" {}", extra_args.join(" "))
+        };
+
+        // Opencode CLI accepts prompt via stdin
+        format!(
+            "cd {} && cat {} | opencode{extra_args_str}",
+            worktree_path.display(),
+            prompt_file.display()
+        )
+    }
 }
 
 #[cfg(test)]
@@ -217,6 +244,7 @@ mod tests {
         assert_eq!(Provider::Gemini.to_string(), "gemini");
         assert_eq!(Provider::Deepagents.to_string(), "deepagents");
         assert_eq!(Provider::Amp.to_string(), "amp");
+        assert_eq!(Provider::Opencode.to_string(), "opencode");
     }
 
     #[test]
@@ -226,6 +254,7 @@ mod tests {
         assert_eq!(Provider::Gemini.binary_name(), "gemini");
         assert_eq!(Provider::Deepagents.binary_name(), "deepagents");
         assert_eq!(Provider::Amp.binary_name(), "amp");
+        assert_eq!(Provider::Opencode.binary_name(), "opencode");
     }
 
     #[test]
@@ -249,6 +278,9 @@ mod tests {
 
         let json = serde_json::to_string(&Provider::Amp).unwrap();
         assert_eq!(json, "\"amp\"");
+
+        let json = serde_json::to_string(&Provider::Opencode).unwrap();
+        assert_eq!(json, "\"opencode\"");
     }
 
     #[test]
@@ -267,6 +299,9 @@ mod tests {
 
         let provider: Provider = serde_json::from_str("\"amp\"").unwrap();
         assert_eq!(provider, Provider::Amp);
+
+        let provider: Provider = serde_json::from_str("\"opencode\"").unwrap();
+        assert_eq!(provider, Provider::Opencode);
     }
 
     #[test]
@@ -403,21 +438,52 @@ mod tests {
     }
 
     #[test]
+    fn test_build_opencode_command() {
+        let worktree = PathBuf::from("/tmp/worktree");
+        let prompt = PathBuf::from("/tmp/prompt.txt");
+        let status = PathBuf::from("/tmp/status.json");
+
+        let cmd = Provider::Opencode.build_command(&worktree, &prompt, &status, &[]);
+
+        assert!(cmd.contains("cd /tmp/worktree"));
+        assert!(cmd.contains("cat /tmp/prompt.txt"));
+        assert!(cmd.contains("opencode"));
+    }
+
+    #[test]
+    fn test_build_opencode_command_with_extra_args() {
+        let worktree = PathBuf::from("/tmp/worktree");
+        let prompt = PathBuf::from("/tmp/prompt.txt");
+        let status = PathBuf::from("/tmp/status.json");
+        let extra_args = vec!["--verbose".to_string()];
+
+        let cmd = Provider::Opencode.build_command(&worktree, &prompt, &status, &extra_args);
+
+        assert!(cmd.contains("--verbose"));
+    }
+
+    #[test]
     fn test_provider_equality() {
         assert_eq!(Provider::Claude, Provider::Claude);
         assert_eq!(Provider::Codex, Provider::Codex);
         assert_eq!(Provider::Gemini, Provider::Gemini);
         assert_eq!(Provider::Deepagents, Provider::Deepagents);
         assert_eq!(Provider::Amp, Provider::Amp);
+        assert_eq!(Provider::Opencode, Provider::Opencode);
         assert_ne!(Provider::Claude, Provider::Codex);
         assert_ne!(Provider::Claude, Provider::Gemini);
         assert_ne!(Provider::Claude, Provider::Deepagents);
         assert_ne!(Provider::Claude, Provider::Amp);
+        assert_ne!(Provider::Claude, Provider::Opencode);
         assert_ne!(Provider::Codex, Provider::Gemini);
         assert_ne!(Provider::Codex, Provider::Deepagents);
         assert_ne!(Provider::Codex, Provider::Amp);
+        assert_ne!(Provider::Codex, Provider::Opencode);
         assert_ne!(Provider::Gemini, Provider::Deepagents);
         assert_ne!(Provider::Gemini, Provider::Amp);
+        assert_ne!(Provider::Gemini, Provider::Opencode);
         assert_ne!(Provider::Deepagents, Provider::Amp);
+        assert_ne!(Provider::Deepagents, Provider::Opencode);
+        assert_ne!(Provider::Amp, Provider::Opencode);
     }
 }

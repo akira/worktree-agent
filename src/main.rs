@@ -41,7 +41,7 @@ enum Commands {
         #[arg(long)]
         base: Option<String>,
 
-        /// AI provider to use (claude, codex, gemini)
+        /// AI provider to use (claude, codex, gemini, opencode)
         #[arg(short, long, value_enum, default_value = "claude")]
         provider: Provider,
 

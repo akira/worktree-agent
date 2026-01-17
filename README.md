@@ -181,6 +181,7 @@ WTA creates the following directories in your repository:
   - OpenAI Codex CLI (`codex`)
   - Google Gemini CLI (`gemini`)
   - Deep Agents CLI (`deepagents`)
+  - Opencode CLI (`opencode`)
 - GitHub CLI (`gh`) - for `wta pr` command
 - [lumen](https://github.com/jnsahaj/lumen) (optional) - for interactive diffs in `wta diff`
 
