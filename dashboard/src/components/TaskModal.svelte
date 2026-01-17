@@ -362,6 +362,11 @@
     color: var(--merged);
   }
 
+  .status-conflict {
+    background-color: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+  }
+
   .close-btn {
     background: none;
     border: none;

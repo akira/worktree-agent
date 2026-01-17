@@ -5,6 +5,7 @@
 
   const columns = [
     { id: 'running', title: 'Running', status: 'running' },
+    { id: 'conflict', title: 'Conflict', status: 'conflict' },
     { id: 'failed', title: 'Failed', status: 'failed' },
     { id: 'completed', title: 'Completed', status: 'completed' },
     { id: 'merged', title: 'Merged', status: 'merged' },
@@ -75,6 +76,10 @@
 
   .column-running .column-header h2 {
     color: var(--accent);
+  }
+
+  .column-conflict .column-header h2 {
+    color: var(--warning);
   }
 
   .column-completed .column-header h2 {

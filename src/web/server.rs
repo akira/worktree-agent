@@ -18,7 +18,18 @@ const DEFAULT_PORT: u16 = 3847;
 struct Assets;
 
 async fn fallback_handler(uri: Uri) -> Response<Body> {
-    let path = uri.path().trim_start_matches('/');
+    let path = uri.path();
+
+    // Return JSON 404 for unknown API routes
+    if path.starts_with("/api/") {
+        return Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(r#"{"error":"Not found"}"#))
+            .unwrap();
+    }
+
+    let path = path.trim_start_matches('/');
     serve_file(if path.is_empty() { "index.html" } else { path })
 }
 

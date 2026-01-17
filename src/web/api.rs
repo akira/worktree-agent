@@ -22,12 +22,15 @@ impl IntoResponse for ApiError {
 }
 
 fn map_err(e: impl std::fmt::Display) -> (StatusCode, Json<ApiError>) {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ApiError {
-            error: e.to_string(),
-        }),
-    )
+    let error_str = e.to_string();
+    let status = if error_str.contains("not found") || error_str.contains("NotFound") {
+        StatusCode::NOT_FOUND
+    } else if error_str.contains("still running") {
+        StatusCode::CONFLICT
+    } else {
+        StatusCode::INTERNAL_SERVER_ERROR
+    };
+    (status, Json(ApiError { error: error_str }))
 }
 
 #[derive(Serialize)]
