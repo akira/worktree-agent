@@ -100,6 +100,28 @@ wta diff <id>
 
 The `diff` command shows changes between the agent's branch and its base branch. It uses [lumen](https://github.com/jnsahaj/lumen)'s interactive side-by-side viewer if available, otherwise falls back to `git diff`.
 
+### Web Dashboard
+
+```bash
+# Start the dashboard server
+wta dashboard
+
+# With custom port
+wta dashboard --port 8080
+
+# Auto-open browser
+wta dashboard --open
+```
+
+The dashboard provides a Kanban board UI at `http://localhost:3847` where you can:
+- View all agents organized by status (Running, Completed, Failed, Merged)
+- Click on any task to view the PR diff
+- Merge changes with different strategies (merge, rebase, squash)
+- Create GitHub PRs
+- Remove agents
+
+The dashboard assets are embedded in the binary, so no additional setup is required.
+
 ### Remove Agents
 
 ```bash
@@ -158,6 +180,23 @@ WTA creates the following directories in your repository:
 - [lumen](https://github.com/jnsahaj/lumen) (optional) - for interactive diffs in `wta diff`
 
 ## Development
+
+### Building from Source
+
+The web dashboard assets must be built before compiling the Rust binary:
+
+```bash
+# Install dashboard dependencies and build
+cd dashboard
+npm install
+npm run build
+cd ..
+
+# Build the Rust binary
+cargo build --release
+```
+
+The dashboard assets are embedded into the binary at compile time using `rust-embed`.
 
 ### Git Hooks Setup
 

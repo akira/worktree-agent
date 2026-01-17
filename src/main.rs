@@ -154,6 +154,17 @@ enum Commands {
 
     /// Print shell function for wta integration
     Init,
+
+    /// Start the web dashboard
+    Dashboard {
+        /// Port to listen on
+        #[arg(short, long, default_value = "3847")]
+        port: u16,
+
+        /// Open browser automatically
+        #[arg(long)]
+        open: bool,
+    },
 }
 
 #[tokio::main]
@@ -215,6 +226,10 @@ async fn main() -> anyhow::Result<()> {
         Commands::Switch { name } => cli::worktree::run(WorktreeCommands::Switch { name }).await?,
 
         Commands::Init => cli::init::run().await?,
+
+        Commands::Dashboard { port, open } => {
+            worktree_agent::web::run_server(Some(port), open).await?
+        }
     }
 
     Ok(())
