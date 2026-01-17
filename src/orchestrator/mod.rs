@@ -134,36 +134,57 @@ impl Orchestrator {
     }
 
     pub async fn launch(&mut self, request: LaunchRequest) -> Result<AgentId> {
-        // 1. Generate ID
-        let id = AgentId(self.state.next_id().to_string());
+        const MAX_ID_RETRIES: u32 = 50;
 
-        // 2. Determine branch name and whether it's an existing branch
-        let (branch, base_branch, worktree_path) = match &request.branch {
-            Some(specified_branch) if self.worktree_manager.branch_exists(specified_branch)? => {
-                // Existing branch - check it out directly
-                let worktree_path = self
-                    .worktree_manager
-                    .checkout_existing(&id.0, specified_branch)?;
-                // For existing branches, base_branch is the branch itself (no fork point)
-                (
-                    specified_branch.clone(),
-                    specified_branch.clone(),
-                    worktree_path,
-                )
+        // 1. Generate ID with retry logic for orphaned worktrees
+        let (id, branch, base_branch, worktree_path) = 'retry: {
+            for _ in 0..MAX_ID_RETRIES {
+                let id = AgentId(self.state.next_id().to_string());
+                self.state.save()?;
+
+                // 2. Determine branch name and whether it's an existing branch
+                match &request.branch {
+                    Some(specified_branch)
+                        if self.worktree_manager.branch_exists(specified_branch)? =>
+                    {
+                        // Existing branch - check it out directly
+                        match self
+                            .worktree_manager
+                            .checkout_existing(&id.0, specified_branch)
+                        {
+                            Ok(worktree_path) => {
+                                break 'retry (
+                                    id,
+                                    specified_branch.clone(),
+                                    specified_branch.clone(),
+                                    worktree_path,
+                                );
+                            }
+                            Err(Error::WorktreeAlreadyExists(_)) => continue,
+                            Err(e) => return Err(e),
+                        }
+                    }
+                    _ => {
+                        // New branch - create it from base
+                        let branch = request
+                            .branch
+                            .clone()
+                            .unwrap_or_else(|| format!("wta/{}", id.0));
+                        let base_branch = match &request.base {
+                            Some(b) => b.clone(),
+                            None => self.get_current_branch()?,
+                        };
+                        match self.worktree_manager.create(&id.0, &branch, &base_branch) {
+                            Ok(worktree_path) => {
+                                break 'retry (id, branch, base_branch, worktree_path);
+                            }
+                            Err(Error::WorktreeAlreadyExists(_)) => continue,
+                            Err(e) => return Err(e),
+                        }
+                    }
+                }
             }
-            _ => {
-                // New branch - create it from base
-                let branch = request
-                    .branch
-                    .clone()
-                    .unwrap_or_else(|| format!("wta/{}", id.0));
-                let base_branch = match &request.base {
-                    Some(b) => b.clone(),
-                    None => self.get_current_branch()?,
-                };
-                let worktree_path = self.worktree_manager.create(&id.0, &branch, &base_branch)?;
-                (branch, base_branch, worktree_path)
-            }
+            return Err(Error::TooManyOrphanedWorktrees(MAX_ID_RETRIES));
         };
 
         // 5. Copy .claude settings from main repo to worktree for permission inheritance
