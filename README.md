@@ -14,6 +14,20 @@ WTA orchestrates Claude Code agents by:
 
 ## Installation
 
+### Quick Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/akira/wta/main/install.sh | bash
+```
+
+This installs the latest release to `~/.local/bin`. Set `WTA_INSTALL_DIR` to customize the location:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/akira/wta/main/install.sh | WTA_INSTALL_DIR=/usr/local/bin bash
+```
+
+### From Source
+
 ```bash
 cargo install --path .
 ```
