@@ -66,6 +66,9 @@ pub enum Error {
 
     #[error("Editor aborted: {0}")]
     EditorAborted(String),
+
+    #[error("Too many orphaned worktrees found ({0} consecutive). Run 'wta prune' to clean up.")]
+    TooManyOrphanedWorktrees(u32),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
