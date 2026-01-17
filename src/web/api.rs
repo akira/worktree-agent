@@ -110,6 +110,19 @@ pub async fn get_diff(
     let orchestrator = state.lock().await;
     let agent = orchestrator.get_agent(&id).map_err(map_err)?;
 
+    // Check if worktree still exists (it's removed after merge)
+    if !agent.worktree_path.exists() {
+        return Ok(Json(DiffResponse {
+            diff: String::new(),
+            files_changed: Vec::new(),
+            stats: DiffStats {
+                additions: 0,
+                deletions: 0,
+                files_changed: 0,
+            },
+        }));
+    }
+
     let diff_range = format!("{}...HEAD", agent.base_branch);
 
     // Get the diff content
@@ -287,7 +300,10 @@ pub async fn get_output(
     let orchestrator = state.lock().await;
     let lines = query.lines.unwrap_or(100);
 
-    let output = orchestrator.get_output(&id, lines).map_err(map_err)?;
+    // Try to get output, but return empty string if tmux window is gone
+    let output = orchestrator
+        .get_output(&id, lines)
+        .unwrap_or_else(|_| "Output not available (tmux window closed)".to_string());
 
     Ok(Json(OutputResponse { output }))
 }
