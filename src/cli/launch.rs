@@ -1,15 +1,44 @@
+use crate::editor::open_editor_for_task;
 use crate::orchestrator::{LaunchRequest, Orchestrator};
 use crate::provider::Provider;
 use crate::Result;
 
-pub async fn run(
-    task: String,
-    branch: Option<String>,
-    base: Option<String>,
-    provider: Provider,
-    code: bool,
-    provider_args: Vec<String>,
-) -> Result<()> {
+pub struct LaunchOptions {
+    pub task: Option<String>,
+    pub editor: Option<String>,
+    pub branch: Option<String>,
+    pub base: Option<String>,
+    pub provider: Provider,
+    pub code: bool,
+    pub provider_args: Vec<String>,
+}
+
+pub async fn run(options: LaunchOptions) -> Result<()> {
+    let LaunchOptions {
+        task,
+        editor,
+        branch,
+        base,
+        provider,
+        code,
+        provider_args,
+    } = options;
+
+    // Resolve the task: either from --task, --editor, or error
+    let task = match (task, editor) {
+        (Some(t), None) => t,
+        (_, Some(cmd)) => {
+            let editor_cmd = if cmd.is_empty() { None } else { Some(cmd) };
+            open_editor_for_task(editor_cmd)?
+        }
+        (None, None) => {
+            eprintln!("Error: Either --task or --editor must be provided");
+            eprintln!("  Use --task \"description\" for inline task");
+            eprintln!("  Use --editor [cmd] to compose in your editor");
+            std::process::exit(1);
+        }
+    };
+
     let mut orchestrator = Orchestrator::new()?;
 
     let request = LaunchRequest {

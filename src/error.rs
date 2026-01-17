@@ -63,6 +63,9 @@ pub enum Error {
 
     #[error("PR creation failed: {0}")]
     PrFailed(String),
+
+    #[error("Editor aborted: {0}")]
+    EditorAborted(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -25,9 +25,13 @@ struct Cli {
 enum Commands {
     /// Launch a new agent with a task
     Launch {
-        /// The task for the agent to perform
+        /// The task for the agent to perform (use --editor for multi-line)
         #[arg(short, long)]
-        task: String,
+        task: Option<String>,
+
+        /// Open editor to compose the task, optionally specify editor command
+        #[arg(short, long, value_name = "CMD", num_args = 0..=1, default_missing_value = "")]
+        editor: Option<String>,
 
         /// Branch name (auto-generated if not provided)
         #[arg(short, long)]
@@ -162,12 +166,24 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Launch {
             task,
+            editor,
             branch,
             base,
             provider,
             code,
             provider_args,
-        } => cli::launch::run(task, branch, base, provider, code, provider_args).await?,
+        } => {
+            let options = cli::launch::LaunchOptions {
+                task,
+                editor,
+                branch,
+                base,
+                provider,
+                code,
+                provider_args,
+            };
+            cli::launch::run(options).await?
+        }
 
         Commands::List => cli::list::run().await?,
 

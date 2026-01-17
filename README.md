@@ -31,7 +31,15 @@ wta launch --task "Add dark mode" --branch feature/dark-mode
 
 # From a specific base branch
 wta launch --task "Fix login bug" --base develop
+
+# Use editor for multi-line task descriptions (like git commit)
+wta launch --editor              # Uses default editor
+wta launch --editor code         # Uses VS Code (--wait added automatically)
+wta launch --editor vim          # Uses vim
+wta launch -e --branch feature/complex-task
 ```
+
+Editor resolution: `--editor [cmd]` > `$VISUAL` > `$EDITOR` > `git config core.editor` > `vi`. Lines starting with `#` are comments.
 
 ### Monitor Agents
 
