@@ -175,7 +175,12 @@ WTA creates the following directories in your repository:
 
 - Git
 - tmux
-- Claude Code CLI (`claude`)
+- One of the supported AI provider CLIs:
+  - Claude Code CLI (`claude`) - default
+  - Amp Code CLI (`amp`)
+  - OpenAI Codex CLI (`codex`)
+  - Google Gemini CLI (`gemini`)
+  - Deep Agents CLI (`deepagents`)
 - GitHub CLI (`gh`) - for `wta pr` command
 - [lumen](https://github.com/jnsahaj/lumen) (optional) - for interactive diffs in `wta diff`
 

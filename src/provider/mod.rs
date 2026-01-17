@@ -15,6 +15,8 @@ pub enum Provider {
     Gemini,
     /// Deep Agents CLI
     Deepagents,
+    /// Amp Code CLI
+    Amp,
 }
 
 impl std::fmt::Display for Provider {
@@ -24,6 +26,7 @@ impl std::fmt::Display for Provider {
             Provider::Codex => write!(f, "codex"),
             Provider::Gemini => write!(f, "gemini"),
             Provider::Deepagents => write!(f, "deepagents"),
+            Provider::Amp => write!(f, "amp"),
         }
     }
 }
@@ -36,6 +39,7 @@ impl Provider {
             Provider::Codex => "codex",
             Provider::Gemini => "gemini",
             Provider::Deepagents => "deepagents",
+            Provider::Amp => "amp",
         }
     }
 
@@ -62,6 +66,7 @@ impl Provider {
             Provider::Deepagents => {
                 self.build_deepagents_command(worktree_path, prompt_file, extra_args)
             }
+            Provider::Amp => self.build_amp_command(worktree_path, prompt_file, extra_args),
         }
     }
 
@@ -177,6 +182,27 @@ impl Provider {
             prompt_file.display()
         )
     }
+
+    fn build_amp_command(
+        &self,
+        worktree_path: &Path,
+        prompt_file: &Path,
+        extra_args: &[String],
+    ) -> String {
+        let extra_args_str = if extra_args.is_empty() {
+            String::new()
+        } else {
+            format!(" {}", extra_args.join(" "))
+        };
+
+        // Amp CLI uses --dangerously-allow-all to skip permission prompts
+        // and accepts prompt via stdin
+        format!(
+            "cd {} && cat {} | amp --dangerously-allow-all{extra_args_str}",
+            worktree_path.display(),
+            prompt_file.display()
+        )
+    }
 }
 
 #[cfg(test)]
@@ -190,6 +216,7 @@ mod tests {
         assert_eq!(Provider::Codex.to_string(), "codex");
         assert_eq!(Provider::Gemini.to_string(), "gemini");
         assert_eq!(Provider::Deepagents.to_string(), "deepagents");
+        assert_eq!(Provider::Amp.to_string(), "amp");
     }
 
     #[test]
@@ -198,6 +225,7 @@ mod tests {
         assert_eq!(Provider::Codex.binary_name(), "codex");
         assert_eq!(Provider::Gemini.binary_name(), "gemini");
         assert_eq!(Provider::Deepagents.binary_name(), "deepagents");
+        assert_eq!(Provider::Amp.binary_name(), "amp");
     }
 
     #[test]
@@ -218,6 +246,9 @@ mod tests {
 
         let json = serde_json::to_string(&Provider::Deepagents).unwrap();
         assert_eq!(json, "\"deepagents\"");
+
+        let json = serde_json::to_string(&Provider::Amp).unwrap();
+        assert_eq!(json, "\"amp\"");
     }
 
     #[test]
@@ -233,6 +264,9 @@ mod tests {
 
         let provider: Provider = serde_json::from_str("\"deepagents\"").unwrap();
         assert_eq!(provider, Provider::Deepagents);
+
+        let provider: Provider = serde_json::from_str("\"amp\"").unwrap();
+        assert_eq!(provider, Provider::Amp);
     }
 
     #[test]
@@ -344,16 +378,46 @@ mod tests {
     }
 
     #[test]
+    fn test_build_amp_command() {
+        let worktree = PathBuf::from("/tmp/worktree");
+        let prompt = PathBuf::from("/tmp/prompt.txt");
+        let status = PathBuf::from("/tmp/status.json");
+
+        let cmd = Provider::Amp.build_command(&worktree, &prompt, &status, &[]);
+
+        assert!(cmd.contains("cd /tmp/worktree"));
+        assert!(cmd.contains("cat /tmp/prompt.txt"));
+        assert!(cmd.contains("amp --dangerously-allow-all"));
+    }
+
+    #[test]
+    fn test_build_amp_command_with_extra_args() {
+        let worktree = PathBuf::from("/tmp/worktree");
+        let prompt = PathBuf::from("/tmp/prompt.txt");
+        let status = PathBuf::from("/tmp/status.json");
+        let extra_args = vec!["--mode".to_string(), "rush".to_string()];
+
+        let cmd = Provider::Amp.build_command(&worktree, &prompt, &status, &extra_args);
+
+        assert!(cmd.contains("--mode rush"));
+    }
+
+    #[test]
     fn test_provider_equality() {
         assert_eq!(Provider::Claude, Provider::Claude);
         assert_eq!(Provider::Codex, Provider::Codex);
         assert_eq!(Provider::Gemini, Provider::Gemini);
         assert_eq!(Provider::Deepagents, Provider::Deepagents);
+        assert_eq!(Provider::Amp, Provider::Amp);
         assert_ne!(Provider::Claude, Provider::Codex);
         assert_ne!(Provider::Claude, Provider::Gemini);
         assert_ne!(Provider::Claude, Provider::Deepagents);
+        assert_ne!(Provider::Claude, Provider::Amp);
         assert_ne!(Provider::Codex, Provider::Gemini);
         assert_ne!(Provider::Codex, Provider::Deepagents);
+        assert_ne!(Provider::Codex, Provider::Amp);
         assert_ne!(Provider::Gemini, Provider::Deepagents);
+        assert_ne!(Provider::Gemini, Provider::Amp);
+        assert_ne!(Provider::Deepagents, Provider::Amp);
     }
 }
