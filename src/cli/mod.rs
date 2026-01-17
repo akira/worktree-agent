@@ -6,6 +6,7 @@ pub mod list;
 pub mod merge;
 pub mod pr;
 pub mod prune;
+pub mod quickstart;
 pub mod remove;
 pub mod status;
 pub mod worktree;

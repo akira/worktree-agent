@@ -155,6 +155,9 @@ enum Commands {
     /// Print shell function for wta integration
     Init,
 
+    /// Show quickstart guide
+    Quickstart,
+
     /// Start the web dashboard
     Dashboard {
         /// Port to listen on
@@ -226,6 +229,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Switch { name } => cli::worktree::run(WorktreeCommands::Switch { name }).await?,
 
         Commands::Init => cli::init::run().await?,
+
+        Commands::Quickstart => cli::quickstart::run().await?,
 
         Commands::Dashboard { port, open } => {
             worktree_agent::web::run_server(Some(port), open).await?
