@@ -35,7 +35,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Table display
-tabled = "0.17"
+tabled = { version = "0.17", features = ["ansi"] }
+
+# Terminal colors
+colored = "2"
 
 # Web server
 axum = "0.7"

@@ -3,7 +3,7 @@ use crate::web::api::{self, AppState};
 use crate::Result;
 use axum::body::Body;
 use axum::http::{header, Response, StatusCode, Uri};
-use axum::routing::{delete, get, post};
+use axum::routing::{get, post};
 use axum::Router;
 use rust_embed::Embed;
 use std::net::SocketAddr;
@@ -62,12 +62,11 @@ pub async fn run_server(port: Option<u16>, open_browser: bool) -> Result<()> {
 
     let api_routes = Router::new()
         .route("/agents", get(api::list_agents))
-        .route("/agents/{id}", get(api::get_agent))
-        .route("/agents/{id}/diff", get(api::get_diff))
-        .route("/agents/{id}/merge", post(api::merge_agent))
-        .route("/agents/{id}/pr", post(api::create_pr))
-        .route("/agents/{id}/output", get(api::get_output))
-        .route("/agents/{id}", delete(api::remove_agent));
+        .route("/agents/:id", get(api::get_agent).delete(api::remove_agent))
+        .route("/agents/:id/diff", get(api::get_diff))
+        .route("/agents/:id/merge", post(api::merge_agent))
+        .route("/agents/:id/pr", post(api::create_pr))
+        .route("/agents/:id/output", get(api::get_output));
 
     let app = Router::new()
         .nest("/api", api_routes)

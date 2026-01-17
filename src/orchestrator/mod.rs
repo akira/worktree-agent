@@ -342,12 +342,22 @@ impl Orchestrator {
             Err(e) => return Err(e),
         }
 
-        let result = crate::git::merge::merge_branch(
+        let result = match crate::git::merge::merge_branch(
             &self.repo_root,
             &agent.branch,
             &agent.base_branch,
             strategy,
-        )?;
+        ) {
+            Ok(result) => result,
+            Err(Error::MergeConflict(conflicts)) => {
+                // Update agent status to track the conflict
+                let agent = self.get_agent_mut(id)?;
+                agent.status = AgentStatus::Conflict;
+                self.state.save()?;
+                return Err(Error::MergeConflict(conflicts));
+            }
+            Err(e) => return Err(e),
+        };
 
         if result.success {
             let repo = git2::Repository::open(&self.repo_root)?;
@@ -552,7 +562,10 @@ impl Orchestrator {
                 PruneFilter::Inactive => {
                     matches!(
                         agent.status,
-                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                        AgentStatus::Merged
+                            | AgentStatus::Completed
+                            | AgentStatus::Failed
+                            | AgentStatus::Conflict
                     )
                 }
             })
@@ -653,7 +666,10 @@ mod tests {
                 PruneFilter::Inactive => {
                     matches!(
                         agent.status,
-                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                        AgentStatus::Merged
+                            | AgentStatus::Completed
+                            | AgentStatus::Failed
+                            | AgentStatus::Conflict
                     )
                 }
             })
@@ -680,7 +696,10 @@ mod tests {
                 PruneFilter::Inactive => {
                     matches!(
                         agent.status,
-                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                        AgentStatus::Merged
+                            | AgentStatus::Completed
+                            | AgentStatus::Failed
+                            | AgentStatus::Conflict
                     )
                 }
             })
@@ -708,7 +727,10 @@ mod tests {
                 PruneFilter::Inactive => {
                     matches!(
                         agent.status,
-                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                        AgentStatus::Merged
+                            | AgentStatus::Completed
+                            | AgentStatus::Failed
+                            | AgentStatus::Conflict
                     )
                 }
             })
@@ -735,7 +757,10 @@ mod tests {
                 PruneFilter::Inactive => {
                     matches!(
                         agent.status,
-                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                        AgentStatus::Merged
+                            | AgentStatus::Completed
+                            | AgentStatus::Failed
+                            | AgentStatus::Conflict
                     )
                 }
             })
@@ -761,7 +786,10 @@ mod tests {
                 PruneFilter::Inactive => {
                     matches!(
                         agent.status,
-                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
+                        AgentStatus::Merged
+                            | AgentStatus::Completed
+                            | AgentStatus::Failed
+                            | AgentStatus::Conflict
                     )
                 }
             })
