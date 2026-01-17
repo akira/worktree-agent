@@ -2,8 +2,7 @@ use crate::orchestrator::Orchestrator;
 use crate::web::api::{self, AppState};
 use crate::Result;
 use axum::body::Body;
-use axum::extract::Path;
-use axum::http::{header, Response, StatusCode};
+use axum::http::{header, Response, StatusCode, Uri};
 use axum::routing::{delete, get, post};
 use axum::Router;
 use rust_embed::Embed;
@@ -18,12 +17,9 @@ const DEFAULT_PORT: u16 = 3847;
 #[folder = "dashboard/dist"]
 struct Assets;
 
-async fn serve_static(Path(path): Path<String>) -> Response<Body> {
-    serve_file(&path)
-}
-
-async fn serve_index() -> Response<Body> {
-    serve_file("index.html")
+async fn fallback_handler(uri: Uri) -> Response<Body> {
+    let path = uri.path().trim_start_matches('/');
+    serve_file(if path.is_empty() { "index.html" } else { path })
 }
 
 fn serve_file(path: &str) -> Response<Body> {
@@ -75,8 +71,7 @@ pub async fn run_server(port: Option<u16>, open_browser: bool) -> Result<()> {
 
     let app = Router::new()
         .nest("/api", api_routes)
-        .route("/", get(serve_index))
-        .route("/*path", get(serve_static))
+        .fallback(fallback_handler)
         .layer(cors)
         .with_state(state);
 
