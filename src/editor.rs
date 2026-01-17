@@ -144,7 +144,8 @@ mod tests {
     fn test_process_editor_content_removes_comments() {
         let content = "# This is a comment\nActual task\n# Another comment\nMore task";
         let result = process_editor_content(content);
-        assert_eq!(result, "Actual task\n\nMore task");
+        // Comment lines are filtered out entirely, not replaced with blank lines
+        assert_eq!(result, "Actual task\nMore task");
     }
 
     #[test]
@@ -162,11 +163,33 @@ mod tests {
     }
 
     #[test]
-    fn test_get_editor_default() {
-        // Remove both env vars to test default
+    fn test_get_editor_visual_takes_precedence() {
+        // VISUAL should take precedence over EDITOR
+        env::set_var("VISUAL", "test-visual-editor");
+        env::set_var("EDITOR", "test-editor");
+        let editor = get_editor();
+        env::remove_var("VISUAL");
+        env::remove_var("EDITOR");
+        assert_eq!(editor, "test-visual-editor");
+    }
+
+    #[test]
+    fn test_get_editor_falls_back_to_editor() {
+        // When VISUAL is not set, EDITOR should be used
+        env::remove_var("VISUAL");
+        env::set_var("EDITOR", "test-editor");
+        let editor = get_editor();
+        env::remove_var("EDITOR");
+        assert_eq!(editor, "test-editor");
+    }
+
+    #[test]
+    fn test_get_editor_returns_something() {
+        // When env vars are not set, we get git config or default
         env::remove_var("VISUAL");
         env::remove_var("EDITOR");
         let editor = get_editor();
-        assert_eq!(editor, DEFAULT_EDITOR);
+        // Should return git config editor or default "vi", never empty
+        assert!(!editor.is_empty());
     }
 }
