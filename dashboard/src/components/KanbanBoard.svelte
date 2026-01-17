@@ -5,8 +5,8 @@
 
   const columns = [
     { id: 'running', title: 'Running', status: 'running' },
-    { id: 'completed', title: 'Completed', status: 'completed' },
     { id: 'failed', title: 'Failed', status: 'failed' },
+    { id: 'completed', title: 'Completed', status: 'completed' },
     { id: 'merged', title: 'Merged', status: 'merged' },
   ];
 
