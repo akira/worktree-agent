@@ -173,6 +173,23 @@ WTA creates the following directories in your repository:
 
 ## Development
 
+### Building from Source
+
+The web dashboard assets must be built before compiling the Rust binary:
+
+```bash
+# Install dashboard dependencies and build
+cd dashboard
+npm install
+npm run build
+cd ..
+
+# Build the Rust binary
+cargo build --release
+```
+
+The dashboard assets are embedded into the binary at compile time using `rust-embed`.
+
 ### Git Hooks Setup
 
 This project uses git hooks to ensure code quality. To enable them, run:
