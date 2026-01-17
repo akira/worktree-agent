@@ -13,6 +13,8 @@ pub enum Provider {
     Codex,
     /// Google Gemini CLI
     Gemini,
+    /// Deep Agents CLI
+    Deepagents,
 }
 
 impl std::fmt::Display for Provider {
@@ -21,6 +23,7 @@ impl std::fmt::Display for Provider {
             Provider::Claude => write!(f, "claude"),
             Provider::Codex => write!(f, "codex"),
             Provider::Gemini => write!(f, "gemini"),
+            Provider::Deepagents => write!(f, "deepagents"),
         }
     }
 }
@@ -32,6 +35,7 @@ impl Provider {
             Provider::Claude => "claude",
             Provider::Codex => "codex",
             Provider::Gemini => "gemini",
+            Provider::Deepagents => "deepagents",
         }
     }
 
@@ -55,6 +59,9 @@ impl Provider {
             }
             Provider::Codex => self.build_codex_command(worktree_path, prompt_file, extra_args),
             Provider::Gemini => self.build_gemini_command(worktree_path, prompt_file, extra_args),
+            Provider::Deepagents => {
+                self.build_deepagents_command(worktree_path, prompt_file, extra_args)
+            }
         }
     }
 
@@ -149,6 +156,27 @@ impl Provider {
             prompt_file.display()
         )
     }
+
+    fn build_deepagents_command(
+        &self,
+        worktree_path: &Path,
+        prompt_file: &Path,
+        extra_args: &[String],
+    ) -> String {
+        let extra_args_str = if extra_args.is_empty() {
+            String::new()
+        } else {
+            format!(" {}", extra_args.join(" "))
+        };
+
+        // Deep Agents CLI uses --auto-approve to skip confirmation prompts
+        // and accepts prompt via stdin
+        format!(
+            "cd {} && cat {} | deepagents --auto-approve{extra_args_str}",
+            worktree_path.display(),
+            prompt_file.display()
+        )
+    }
 }
 
 #[cfg(test)]
@@ -161,6 +189,7 @@ mod tests {
         assert_eq!(Provider::Claude.to_string(), "claude");
         assert_eq!(Provider::Codex.to_string(), "codex");
         assert_eq!(Provider::Gemini.to_string(), "gemini");
+        assert_eq!(Provider::Deepagents.to_string(), "deepagents");
     }
 
     #[test]
@@ -168,6 +197,7 @@ mod tests {
         assert_eq!(Provider::Claude.binary_name(), "claude");
         assert_eq!(Provider::Codex.binary_name(), "codex");
         assert_eq!(Provider::Gemini.binary_name(), "gemini");
+        assert_eq!(Provider::Deepagents.binary_name(), "deepagents");
     }
 
     #[test]
@@ -185,6 +215,9 @@ mod tests {
 
         let json = serde_json::to_string(&Provider::Gemini).unwrap();
         assert_eq!(json, "\"gemini\"");
+
+        let json = serde_json::to_string(&Provider::Deepagents).unwrap();
+        assert_eq!(json, "\"deepagents\"");
     }
 
     #[test]
@@ -197,6 +230,9 @@ mod tests {
 
         let provider: Provider = serde_json::from_str("\"gemini\"").unwrap();
         assert_eq!(provider, Provider::Gemini);
+
+        let provider: Provider = serde_json::from_str("\"deepagents\"").unwrap();
+        assert_eq!(provider, Provider::Deepagents);
     }
 
     #[test]
@@ -283,12 +319,41 @@ mod tests {
     }
 
     #[test]
+    fn test_build_deepagents_command() {
+        let worktree = PathBuf::from("/tmp/worktree");
+        let prompt = PathBuf::from("/tmp/prompt.txt");
+        let status = PathBuf::from("/tmp/status.json");
+
+        let cmd = Provider::Deepagents.build_command(&worktree, &prompt, &status, &[]);
+
+        assert!(cmd.contains("cd /tmp/worktree"));
+        assert!(cmd.contains("cat /tmp/prompt.txt"));
+        assert!(cmd.contains("deepagents --auto-approve"));
+    }
+
+    #[test]
+    fn test_build_deepagents_command_with_extra_args() {
+        let worktree = PathBuf::from("/tmp/worktree");
+        let prompt = PathBuf::from("/tmp/prompt.txt");
+        let status = PathBuf::from("/tmp/status.json");
+        let extra_args = vec!["--agent".to_string(), "backend-dev".to_string()];
+
+        let cmd = Provider::Deepagents.build_command(&worktree, &prompt, &status, &extra_args);
+
+        assert!(cmd.contains("--agent backend-dev"));
+    }
+
+    #[test]
     fn test_provider_equality() {
         assert_eq!(Provider::Claude, Provider::Claude);
         assert_eq!(Provider::Codex, Provider::Codex);
         assert_eq!(Provider::Gemini, Provider::Gemini);
+        assert_eq!(Provider::Deepagents, Provider::Deepagents);
         assert_ne!(Provider::Claude, Provider::Codex);
         assert_ne!(Provider::Claude, Provider::Gemini);
+        assert_ne!(Provider::Claude, Provider::Deepagents);
         assert_ne!(Provider::Codex, Provider::Gemini);
+        assert_ne!(Provider::Codex, Provider::Deepagents);
+        assert_ne!(Provider::Gemini, Provider::Deepagents);
     }
 }
