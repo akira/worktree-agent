@@ -581,12 +581,10 @@ impl Orchestrator {
                 PruneFilter::All => true,
                 PruneFilter::Status(status) => agent.status == status,
                 PruneFilter::Inactive => {
+                    // Note: Conflict is NOT included - those agents have unresolved work
                     matches!(
                         agent.status,
-                        AgentStatus::Merged
-                            | AgentStatus::Completed
-                            | AgentStatus::Failed
-                            | AgentStatus::Conflict
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
                     )
                 }
             })
@@ -685,12 +683,10 @@ mod tests {
                 PruneFilter::All => true,
                 PruneFilter::Status(s) => agent.status == s,
                 PruneFilter::Inactive => {
+                    // Note: Conflict is NOT included - those agents have unresolved work
                     matches!(
                         agent.status,
-                        AgentStatus::Merged
-                            | AgentStatus::Completed
-                            | AgentStatus::Failed
-                            | AgentStatus::Conflict
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
                     )
                 }
             })
@@ -715,12 +711,10 @@ mod tests {
                 PruneFilter::All => true,
                 PruneFilter::Status(s) => agent.status == s,
                 PruneFilter::Inactive => {
+                    // Note: Conflict is NOT included - those agents have unresolved work
                     matches!(
                         agent.status,
-                        AgentStatus::Merged
-                            | AgentStatus::Completed
-                            | AgentStatus::Failed
-                            | AgentStatus::Conflict
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
                     )
                 }
             })
@@ -746,12 +740,10 @@ mod tests {
                 PruneFilter::All => true,
                 PruneFilter::Status(s) => agent.status == s,
                 PruneFilter::Inactive => {
+                    // Note: Conflict is NOT included - those agents have unresolved work
                     matches!(
                         agent.status,
-                        AgentStatus::Merged
-                            | AgentStatus::Completed
-                            | AgentStatus::Failed
-                            | AgentStatus::Conflict
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
                     )
                 }
             })
@@ -776,12 +768,10 @@ mod tests {
                 PruneFilter::All => true,
                 PruneFilter::Status(s) => agent.status == s,
                 PruneFilter::Inactive => {
+                    // Note: Conflict is NOT included - those agents have unresolved work
                     matches!(
                         agent.status,
-                        AgentStatus::Merged
-                            | AgentStatus::Completed
-                            | AgentStatus::Failed
-                            | AgentStatus::Conflict
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
                     )
                 }
             })
@@ -805,12 +795,10 @@ mod tests {
                 PruneFilter::All => true,
                 PruneFilter::Status(s) => agent.status == s,
                 PruneFilter::Inactive => {
+                    // Note: Conflict is NOT included - those agents have unresolved work
                     matches!(
                         agent.status,
-                        AgentStatus::Merged
-                            | AgentStatus::Completed
-                            | AgentStatus::Failed
-                            | AgentStatus::Conflict
+                        AgentStatus::Merged | AgentStatus::Completed | AgentStatus::Failed
                     )
                 }
             })
