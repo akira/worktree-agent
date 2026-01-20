@@ -5,18 +5,36 @@ use std::process::{Command, Output};
 const GIT: &str = "git";
 const WORKTREE: &str = "worktree";
 const ALREADY_EXISTS: &str = "already exists";
+const WORKTREE_SUFFIX: &str = "-wta-";
 
 pub struct WorktreeManager {
     repo_root: PathBuf,
-    worktrees_dir: PathBuf,
+    parent_dir: PathBuf,
+    repo_name: String,
 }
 
 impl WorktreeManager {
-    pub fn new(repo_root: &Path, worktrees_dir: &Path) -> Self {
+    pub fn new(repo_root: &Path) -> Self {
+        let parent_dir = repo_root
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| repo_root.to_path_buf());
+        let repo_name = repo_root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("repo")
+            .to_string();
         Self {
             repo_root: repo_root.to_path_buf(),
-            worktrees_dir: worktrees_dir.to_path_buf(),
+            parent_dir,
+            repo_name,
         }
+    }
+
+    /// Compute the worktree path as a sibling directory: <parent>/<repo_name>-wta-<id>
+    fn worktree_path(&self, id: &str) -> PathBuf {
+        self.parent_dir
+            .join(format!("{}{WORKTREE_SUFFIX}{id}", self.repo_name))
     }
 
     fn run_git(&self, args: &[&str]) -> Result<Output> {
@@ -58,7 +76,7 @@ impl WorktreeManager {
 
     /// Create a worktree for an existing branch
     pub fn checkout_existing(&self, id: &str, branch: &str) -> Result<PathBuf> {
-        let worktree_path = self.worktrees_dir.join(id);
+        let worktree_path = self.worktree_path(id);
 
         if worktree_path.exists() {
             return Err(Error::WorktreeAlreadyExists(worktree_path));
@@ -85,7 +103,7 @@ impl WorktreeManager {
 
     /// Create a new worktree with a new branch based on the given base branch
     pub fn create(&self, id: &str, branch: &str, base: &str) -> Result<PathBuf> {
-        let worktree_path = self.worktrees_dir.join(id);
+        let worktree_path = self.worktree_path(id);
 
         if worktree_path.exists() {
             return Err(Error::WorktreeAlreadyExists(worktree_path));
@@ -113,7 +131,7 @@ impl WorktreeManager {
 
     /// Remove a worktree
     pub fn remove(&self, id: &str) -> Result<()> {
-        let worktree_path = self.worktrees_dir.join(id);
+        let worktree_path = self.worktree_path(id);
 
         if !worktree_path.exists() {
             return Err(Error::WorktreeNotFound(worktree_path));
@@ -179,25 +197,41 @@ mod tests {
     #[test]
     fn test_worktree_manager_new() {
         let repo_root = PathBuf::from("/home/user/project");
-        let worktrees_dir = PathBuf::from("/home/user/project/.worktrees");
-        let manager = WorktreeManager::new(&repo_root, &worktrees_dir);
+        let manager = WorktreeManager::new(&repo_root);
 
         assert_eq!(manager.repo_root, repo_root);
-        assert_eq!(manager.worktrees_dir, worktrees_dir);
+        assert_eq!(manager.parent_dir, PathBuf::from("/home/user"));
+        assert_eq!(manager.repo_name, "project");
+    }
+
+    #[test]
+    fn test_worktree_path_sibling() {
+        let repo_root = PathBuf::from("/home/user/project");
+        let manager = WorktreeManager::new(&repo_root);
+
+        // Worktrees should be siblings: /home/user/project-wta-<id>
+        assert_eq!(
+            manager.worktree_path("1"),
+            PathBuf::from("/home/user/project-wta-1")
+        );
+        assert_eq!(
+            manager.worktree_path("42"),
+            PathBuf::from("/home/user/project-wta-42")
+        );
     }
 
     #[test]
     fn test_worktree_info_equality() {
         let info1 = WorktreeInfo {
-            path: PathBuf::from("/home/user/project/.worktrees/1"),
+            path: PathBuf::from("/home/user/project-wta-1"),
             branch: "wta/1".to_string(),
         };
         let info2 = WorktreeInfo {
-            path: PathBuf::from("/home/user/project/.worktrees/1"),
+            path: PathBuf::from("/home/user/project-wta-1"),
             branch: "wta/1".to_string(),
         };
         let info3 = WorktreeInfo {
-            path: PathBuf::from("/home/user/project/.worktrees/2"),
+            path: PathBuf::from("/home/user/project-wta-2"),
             branch: "wta/2".to_string(),
         };
 
@@ -224,10 +258,10 @@ mod tests {
 worktree /home/user/project
 branch refs/heads/main
 
-worktree /home/user/project/.worktrees/1
+worktree /home/user/project-wta-1
 branch refs/heads/wta/1
 
-worktree /home/user/project/.worktrees/2
+worktree /home/user/project-wta-2
 branch refs/heads/feature-branch
 ";
         let worktrees = parse_worktree_porcelain(stdout);
@@ -235,15 +269,9 @@ branch refs/heads/feature-branch
         assert_eq!(worktrees.len(), 3);
         assert_eq!(worktrees[0].path, PathBuf::from("/home/user/project"));
         assert_eq!(worktrees[0].branch, "main");
-        assert_eq!(
-            worktrees[1].path,
-            PathBuf::from("/home/user/project/.worktrees/1")
-        );
+        assert_eq!(worktrees[1].path, PathBuf::from("/home/user/project-wta-1"));
         assert_eq!(worktrees[1].branch, "wta/1");
-        assert_eq!(
-            worktrees[2].path,
-            PathBuf::from("/home/user/project/.worktrees/2")
-        );
+        assert_eq!(worktrees[2].path, PathBuf::from("/home/user/project-wta-2"));
         assert_eq!(worktrees[2].branch, "feature-branch");
     }
 

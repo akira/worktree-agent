@@ -127,6 +127,10 @@ enum Commands {
         /// Force remove even if agent is still running
         #[arg(short, long)]
         force: bool,
+
+        /// Also delete the git branch (by default branches are preserved)
+        #[arg(short, long)]
+        delete: bool,
     },
 
     /// Prune stale agents and clean up their resources
@@ -138,6 +142,10 @@ enum Commands {
         /// Only prune agents with this status (merged, completed, failed, running)
         #[arg(short, long, value_enum)]
         status: Option<AgentStatus>,
+
+        /// Also delete the git branches (by default branches are preserved)
+        #[arg(short, long)]
+        delete: bool,
     },
 
     /// Manage git worktrees directly (without agents)
@@ -220,9 +228,13 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Diff { id, viewer } => cli::diff::run(id, viewer == DiffViewer::Git).await?,
 
-        Commands::Remove { id, force } => cli::remove::run(id, force).await?,
+        Commands::Remove { id, force, delete } => cli::remove::run(id, force, delete).await?,
 
-        Commands::Prune { all, status } => cli::prune::run(all, status).await?,
+        Commands::Prune {
+            all,
+            status,
+            delete,
+        } => cli::prune::run(all, status, delete).await?,
 
         Commands::Worktree { command } => cli::worktree::run(command).await?,
 

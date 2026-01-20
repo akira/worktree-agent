@@ -12,7 +12,6 @@ use clap::ValueEnum;
 use std::path::{Path, PathBuf};
 
 const TMUX_SESSION_PREFIX: &str = "wta";
-const WORKTREES_DIR: &str = ".worktrees";
 const STATE_DIR: &str = ".worktree-agents";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -73,16 +72,14 @@ impl Orchestrator {
     /// Create a new orchestrator for the current directory
     pub fn new() -> Result<Self> {
         let repo_root = Self::find_repo_root()?;
-        let worktrees_dir = repo_root.join(WORKTREES_DIR);
         let state_dir = repo_root.join(STATE_DIR);
 
-        // Ensure directories exist
-        std::fs::create_dir_all(&worktrees_dir)?;
+        // Ensure state directories exist
         std::fs::create_dir_all(&state_dir)?;
         std::fs::create_dir_all(state_dir.join("status"))?;
 
         let state = State::load_or_create(&state_dir)?;
-        let worktree_manager = WorktreeManager::new(&repo_root, &worktrees_dir);
+        let worktree_manager = WorktreeManager::new(&repo_root);
         let tmux_session_name = Self::generate_session_name(&repo_root);
         let tmux = TmuxManager::new(&tmux_session_name);
 
@@ -254,9 +251,12 @@ impl Orchestrator {
         self.state.agents()
     }
 
-    /// Get the path to the worktrees directory
-    pub fn worktrees_dir(&self) -> PathBuf {
-        self.repo_root.join(WORKTREES_DIR)
+    /// Get the path to the parent directory where worktrees are created as siblings
+    pub fn worktrees_parent_dir(&self) -> PathBuf {
+        self.repo_root
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| self.repo_root.clone())
     }
 
     pub fn get_agent(&self, id: &str) -> Result<&Agent> {
@@ -520,7 +520,7 @@ impl Orchestrator {
         Ok(PrResult { url })
     }
 
-    pub async fn remove(&mut self, id: &str, force: bool) -> Result<()> {
+    pub async fn remove(&mut self, id: &str, force: bool, delete_branch: bool) -> Result<()> {
         // First check the status file to get latest status
         self.check_status(id)?;
 
@@ -543,10 +543,12 @@ impl Orchestrator {
             eprintln!("Warning: could not remove worktree: {e}");
         }
 
-        // Delete branch
-        let repo = git2::Repository::open(&self.repo_root)?;
-        if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
-            let _ = branch.delete();
+        // Delete branch only if explicitly requested
+        if delete_branch {
+            let repo = git2::Repository::open(&self.repo_root)?;
+            if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
+                let _ = branch.delete();
+            };
         }
 
         // Remove prompt and status files if they exist
@@ -571,7 +573,7 @@ impl Orchestrator {
 
     /// Prune agents matching the filter, cleaning up all associated resources
     /// Returns the list of pruned agents
-    pub async fn prune(&mut self, filter: PruneFilter) -> Result<Vec<Agent>> {
+    pub async fn prune(&mut self, filter: PruneFilter, delete_branch: bool) -> Result<Vec<Agent>> {
         // Collect agents to prune based on filter
         let agents_to_prune: Vec<Agent> = self
             .state
@@ -595,7 +597,7 @@ impl Orchestrator {
 
         for agent in agents_to_prune {
             // Perform cleanup, ignoring errors for resources that may already be gone
-            self.cleanup_agent_resources(&agent);
+            self.cleanup_agent_resources(&agent, delete_branch);
 
             // Remove agent from state
             self.state.remove_agent(&agent.id.0)?;
@@ -608,17 +610,19 @@ impl Orchestrator {
 
     /// Clean up all resources associated with an agent
     /// Ignores errors for resources that may already be cleaned up
-    fn cleanup_agent_resources(&self, agent: &Agent) {
+    fn cleanup_agent_resources(&self, agent: &Agent, delete_branch: bool) {
         // Kill tmux window if it exists
         let _ = self.tmux.kill_window(&agent.tmux_window);
 
         // Remove worktree if it exists
         let _ = self.worktree_manager.remove(&agent.id.0);
 
-        // Delete branch if it exists
-        if let Ok(repo) = git2::Repository::open(&self.repo_root) {
-            if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
-                let _ = branch.delete();
+        // Delete branch only if explicitly requested
+        if delete_branch {
+            if let Ok(repo) = git2::Repository::open(&self.repo_root) {
+                if let Ok(mut branch) = repo.find_branch(&agent.branch, git2::BranchType::Local) {
+                    let _ = branch.delete();
+                }
             }
         }
 
@@ -1088,7 +1092,6 @@ mod tests {
     #[test]
     fn test_constants() {
         assert_eq!(TMUX_SESSION_PREFIX, "wta");
-        assert_eq!(WORKTREES_DIR, ".worktrees");
         assert_eq!(STATE_DIR, ".worktree-agents");
     }
 }

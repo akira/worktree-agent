@@ -6,8 +6,7 @@ use std::path::PathBuf;
 use tabled::{Table, Tabled};
 
 const WTA_DIRECTIVE_FILE_ENV: &str = "WTA_DIRECTIVE_FILE";
-
-const WORKTREES_DIR: &str = ".worktrees";
+const WORKTREE_SUFFIX: &str = "-wta-";
 
 #[derive(Subcommand)]
 pub enum WorktreeCommands {
@@ -23,9 +22,9 @@ pub enum WorktreeCommands {
         #[arg(long)]
         base: Option<String>,
 
-        /// Custom path for the worktree (default: .worktrees/<branch>)
+        /// Custom ID for the worktree (default: branch name with / replaced by -)
         #[arg(long)]
-        path: Option<String>,
+        id: Option<String>,
     },
 
     /// Remove a worktree
@@ -80,7 +79,7 @@ fn get_current_branch() -> Result<String> {
 pub async fn run(command: WorktreeCommands) -> Result<()> {
     match command {
         WorktreeCommands::List => run_list().await,
-        WorktreeCommands::Add { branch, base, path } => run_add(branch, base, path).await,
+        WorktreeCommands::Add { branch, base, id } => run_add(branch, base, id).await,
         WorktreeCommands::Remove { name } => run_remove(name).await,
         WorktreeCommands::Prune => run_prune().await,
         WorktreeCommands::Switch { name } => run_switch(name).await,
@@ -89,8 +88,7 @@ pub async fn run(command: WorktreeCommands) -> Result<()> {
 
 async fn run_list() -> Result<()> {
     let repo_root = get_repo_root()?;
-    let worktrees_dir = repo_root.join(WORKTREES_DIR);
-    let manager = WorktreeManager::new(&repo_root, &worktrees_dir);
+    let manager = WorktreeManager::new(&repo_root);
 
     let worktrees = manager.list()?;
 
@@ -113,16 +111,9 @@ async fn run_list() -> Result<()> {
     Ok(())
 }
 
-async fn run_add(branch: String, base: Option<String>, path: Option<String>) -> Result<()> {
+async fn run_add(branch: String, base: Option<String>, id: Option<String>) -> Result<()> {
     let repo_root = get_repo_root()?;
-    let worktrees_dir = repo_root.join(WORKTREES_DIR);
-
-    // Create worktrees directory if it doesn't exist
-    if !worktrees_dir.exists() {
-        std::fs::create_dir_all(&worktrees_dir)?;
-    }
-
-    let manager = WorktreeManager::new(&repo_root, &worktrees_dir);
+    let manager = WorktreeManager::new(&repo_root);
 
     // Determine base branch
     let base_branch = match base {
@@ -130,8 +121,8 @@ async fn run_add(branch: String, base: Option<String>, path: Option<String>) -> 
         None => get_current_branch()?,
     };
 
-    // Determine worktree id/path
-    let worktree_id = path.unwrap_or_else(|| branch.replace('/', "-"));
+    // Determine worktree id
+    let worktree_id = id.unwrap_or_else(|| branch.replace('/', "-"));
 
     let worktree_path = manager.create(&worktree_id, &branch, &base_branch)?;
 
@@ -146,25 +137,12 @@ async fn run_add(branch: String, base: Option<String>, path: Option<String>) -> 
 
 async fn run_remove(name: String) -> Result<()> {
     let repo_root = get_repo_root()?;
-    let worktrees_dir = repo_root.join(WORKTREES_DIR);
-    let manager = WorktreeManager::new(&repo_root, &worktrees_dir);
+    let manager = WorktreeManager::new(&repo_root);
 
-    // Check if name is a path or a worktree id
-    let worktree_path = if name.contains('/') || name.contains('\\') {
-        PathBuf::from(&name)
-    } else {
-        worktrees_dir.join(&name)
-    };
+    // The name should be the worktree ID (the suffix after -wta-)
+    manager.remove(&name)?;
 
-    // Get the worktree id from the path
-    let worktree_id = worktree_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or(&name);
-
-    manager.remove(worktree_id)?;
-
-    println!("Removed worktree: {}", worktree_path.display());
+    println!("Removed worktree: {name}");
 
     Ok(())
 }
@@ -193,8 +171,15 @@ async fn run_prune() -> Result<()> {
 
 async fn run_switch(name: String) -> Result<()> {
     let repo_root = get_repo_root()?;
-    let worktrees_dir = repo_root.join(WORKTREES_DIR);
-    let manager = WorktreeManager::new(&repo_root, &worktrees_dir);
+    let manager = WorktreeManager::new(&repo_root);
+    let repo_name = repo_root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("repo");
+    let parent_dir = repo_root
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| repo_root.clone());
 
     let worktrees = manager.list()?;
 
@@ -221,8 +206,8 @@ async fn run_switch(name: String) -> Result<()> {
         Ok(())
     };
 
-    // Try to find worktree by exact ID match first
-    let direct_path = worktrees_dir.join(&name);
+    // Try to find worktree by exact ID match (sibling path: <parent>/<repo>-wta-<id>)
+    let direct_path = parent_dir.join(format!("{repo_name}{WORKTREE_SUFFIX}{name}"));
     if direct_path.exists() {
         return output_switch(&direct_path);
     }
@@ -234,11 +219,15 @@ async fn run_switch(name: String) -> Result<()> {
         }
     }
 
-    // Try partial match on path
+    // Try partial match on path (extract ID from sibling directory name)
     for wt in &worktrees {
         if let Some(file_name) = wt.path.file_name() {
-            if file_name.to_string_lossy() == name {
-                return output_switch(&wt.path);
+            let file_name_str = file_name.to_string_lossy();
+            // Check if this is a wta worktree and the ID matches
+            if let Some(id) = file_name_str.strip_prefix(&format!("{repo_name}{WORKTREE_SUFFIX}")) {
+                if id == name {
+                    return output_switch(&wt.path);
+                }
             }
         }
     }

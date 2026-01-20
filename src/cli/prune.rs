@@ -17,7 +17,7 @@ struct PrunedAgentRow {
     task: String,
 }
 
-pub async fn run(all: bool, status: Option<AgentStatus>) -> Result<()> {
+pub async fn run(all: bool, status: Option<AgentStatus>, delete_branch: bool) -> Result<()> {
     let mut orchestrator = Orchestrator::new()?;
 
     let filter = if all {
@@ -29,7 +29,7 @@ pub async fn run(all: bool, status: Option<AgentStatus>) -> Result<()> {
         PruneFilter::Inactive
     };
 
-    let pruned = orchestrator.prune(filter).await?;
+    let pruned = orchestrator.prune(filter, delete_branch).await?;
 
     if pruned.is_empty() {
         println!("No agents to prune.");

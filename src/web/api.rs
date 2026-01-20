@@ -270,6 +270,7 @@ pub async fn create_pr(
 #[derive(Deserialize)]
 pub struct RemoveRequest {
     pub force: Option<bool>,
+    pub delete_branch: Option<bool>,
 }
 
 pub async fn remove_agent(
@@ -279,8 +280,12 @@ pub async fn remove_agent(
 ) -> std::result::Result<StatusCode, (StatusCode, Json<ApiError>)> {
     let mut orchestrator = state.lock().await;
     let force = req.force.unwrap_or(false);
+    let delete_branch = req.delete_branch.unwrap_or(false);
 
-    orchestrator.remove(&id, force).await.map_err(map_err)?;
+    orchestrator
+        .remove(&id, force, delete_branch)
+        .await
+        .map_err(map_err)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
