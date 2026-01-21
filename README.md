@@ -53,6 +53,7 @@ wta diff <id>
 wta pr <id>
 # OR merge
 wta merge <id>
+```
 
 ### Launch an Agent
 
