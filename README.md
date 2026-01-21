@@ -34,6 +34,26 @@ cargo install --path .
 
 ## Usage
 
+### Typical Workflow
+
+```bash
+# Basic launch with auto-generated branch name
+wta launch --task "Implement user authentication" --branch feature/dark-mode
+
+# List all agents
+wta list
+
+# Attach to an agent's tmux window
+wta attach <id>
+
+# Diff branch
+wta diff <id>
+
+# push a github PR (can use --force if agent not finished)
+wta pr <id>
+# OR merge
+wta merge <id>
+
 ### Launch an Agent
 
 ```bash
