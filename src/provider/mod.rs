@@ -90,6 +90,18 @@ impl Provider {
             format!(" {}", extra_args.join(" "))
         };
 
+        // Check if dangerously-allow-all is in extra_args
+        let dangerously_allow_all = extra_args.contains(&"--dangerously-allow-all".to_string());
+
+        if dangerously_allow_all {
+            // Skip permission restrictions entirely
+            return format!(
+                "cd {} && cat {} | claude --dangerously-allow-all{extra_args_str}",
+                worktree_path.display(),
+                prompt_file.display()
+            );
+        }
+
         // Default allowed tools for safe operations
         let default_allowed_tools = [
             "Bash(cargo check:*)",
@@ -202,13 +214,25 @@ impl Provider {
             format!(" {}", extra_args.join(" "))
         };
 
-        // Amp CLI uses --dangerously-allow-all to skip permission prompts
-        // and accepts prompt via stdin
-        format!(
-            "cd {} && cat {} | amp --dangerously-allow-all{extra_args_str}",
-            worktree_path.display(),
-            prompt_file.display()
-        )
+        // Check if dangerously-allow-all is explicitly requested
+        // Amp supports this flag for explicit permission skipping
+        let has_dangerously_allow_all = extra_args.contains(&"--dangerously-allow-all".to_string());
+
+        if has_dangerously_allow_all {
+            // Amp CLI uses --dangerously-allow-all to skip all permission prompts
+            format!(
+                "cd {} && cat {} | amp --dangerously-allow-all{extra_args_str}",
+                worktree_path.display(),
+                prompt_file.display()
+            )
+        } else {
+            // By default, Amp also runs with --dangerously-allow-all for consistency
+            format!(
+                "cd {} && cat {} | amp --dangerously-allow-all{extra_args_str}",
+                worktree_path.display(),
+                prompt_file.display()
+            )
+        }
     }
 
     fn build_opencode_command(
@@ -336,6 +360,21 @@ mod tests {
     }
 
     #[test]
+    fn test_build_claude_command_dangerously_allow_all() {
+        let worktree = PathBuf::from("/tmp/worktree");
+        let prompt = PathBuf::from("/tmp/prompt.txt");
+        let status = PathBuf::from("/tmp/status/agent.json");
+        let extra_args = vec!["--dangerously-allow-all".to_string()];
+
+        let cmd = Provider::Claude.build_command(&worktree, &prompt, &status, &extra_args);
+
+        assert!(cmd.contains("claude --dangerously-allow-all"));
+        // Should not contain allowedTools when dangerously-allow-all is used
+        assert!(!cmd.contains("--allowedTools"));
+        assert!(!cmd.contains("--permission-mode"));
+    }
+
+    #[test]
     fn test_build_codex_command() {
         let worktree = PathBuf::from("/tmp/worktree");
         let prompt = PathBuf::from("/tmp/prompt.txt");
@@ -435,6 +474,18 @@ mod tests {
         let cmd = Provider::Amp.build_command(&worktree, &prompt, &status, &extra_args);
 
         assert!(cmd.contains("--mode rush"));
+    }
+
+    #[test]
+    fn test_build_amp_command_dangerously_allow_all() {
+        let worktree = PathBuf::from("/tmp/worktree");
+        let prompt = PathBuf::from("/tmp/prompt.txt");
+        let status = PathBuf::from("/tmp/status.json");
+        let extra_args = vec!["--dangerously-allow-all".to_string()];
+
+        let cmd = Provider::Amp.build_command(&worktree, &prompt, &status, &extra_args);
+
+        assert!(cmd.contains("amp --dangerously-allow-all"));
     }
 
     #[test]
