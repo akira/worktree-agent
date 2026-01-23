@@ -10,6 +10,7 @@ pub struct LaunchOptions {
     pub base: Option<String>,
     pub provider: Provider,
     pub code: bool,
+    pub dangerously_allow_all: bool,
     pub provider_args: Vec<String>,
 }
 
@@ -21,6 +22,7 @@ pub async fn run(options: LaunchOptions) -> Result<()> {
         base,
         provider,
         code,
+        dangerously_allow_all,
         provider_args,
     } = options;
 
@@ -40,6 +42,16 @@ pub async fn run(options: LaunchOptions) -> Result<()> {
     };
 
     let mut orchestrator = Orchestrator::new()?;
+
+    let mut provider_args = provider_args;
+    if dangerously_allow_all {
+        match provider {
+            Provider::Claude | Provider::Amp => {
+                provider_args.insert(0, "--dangerously-allow-all".to_string());
+            }
+            _ => {}
+        }
+    }
 
     let request = LaunchRequest {
         task: task.clone(),

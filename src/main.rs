@@ -49,6 +49,10 @@ enum Commands {
         #[arg(long)]
         code: bool,
 
+        /// Dangerously skip all permission prompts (Claude only)
+        #[arg(long)]
+        dangerously_allow_all: bool,
+
         /// Extra arguments to pass to the AI provider
         #[arg(last = true)]
         provider_args: Vec<String>,
@@ -193,6 +197,7 @@ async fn main() -> anyhow::Result<()> {
             base,
             provider,
             code,
+            dangerously_allow_all,
             provider_args,
         } => {
             let options = cli::launch::LaunchOptions {
@@ -202,6 +207,7 @@ async fn main() -> anyhow::Result<()> {
                 base,
                 provider,
                 code,
+                dangerously_allow_all,
                 provider_args,
             };
             cli::launch::run(options).await?
