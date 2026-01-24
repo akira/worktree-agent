@@ -1,4 +1,5 @@
 pub mod attach;
+pub mod claude_skill;
 pub mod diff;
 pub mod init;
 pub mod launch;
