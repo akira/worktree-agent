@@ -196,6 +196,7 @@ fn parse_diff_stats(stat_str: &str) -> DiffStats {
 
 #[derive(Deserialize)]
 pub struct MergeRequest {
+    pub target: Option<String>,
     pub strategy: Option<String>,
     pub force: Option<bool>,
 }
@@ -223,7 +224,7 @@ pub async fn merge_agent(
     let force = req.force.unwrap_or(false);
 
     let result = orchestrator
-        .merge(&id, strategy, force)
+        .merge(&id, req.target.clone(), strategy, force)
         .await
         .map_err(map_err)?;
 

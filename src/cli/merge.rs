@@ -3,7 +3,12 @@ use crate::orchestrator::{MergeStrategy, Orchestrator};
 use crate::Result;
 use colored::Colorize;
 
-pub async fn run(id: String, strategy: MergeStrategy, force: bool) -> Result<()> {
+pub async fn run(
+    id: String,
+    target: Option<String>,
+    strategy: MergeStrategy,
+    force: bool,
+) -> Result<()> {
     let mut orchestrator = Orchestrator::new()?;
 
     // Check status (updates from status file if exists)
@@ -13,7 +18,7 @@ pub async fn run(id: String, strategy: MergeStrategy, force: bool) -> Result<()>
     let agent = orchestrator.get_agent(&id)?;
     let branch = agent.branch.clone();
 
-    let result = match orchestrator.merge(&id, strategy, force).await {
+    let result = match orchestrator.merge(&id, target, strategy, force).await {
         Ok(result) => result,
         Err(Error::MergeConflict(conflicts)) => {
             println!("{}", "Merge conflict detected!".red().bold());

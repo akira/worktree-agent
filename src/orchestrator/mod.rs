@@ -117,6 +117,40 @@ impl Orchestrator {
     fn find_repo_root() -> Result<PathBuf> {
         let current_dir = std::env::current_dir()?;
         let repo = git2::Repository::discover(&current_dir)?;
+
+        // CRITICAL: Always return the main repository path, not a worktree path
+        // When running commands from a worktree, we still need to operate on the main repo
+        // for merge operations. Otherwise, we'll try to merge branches in the wrong location.
+        // See: https://github.com/akira/worktree-agent/issues/XX
+        if repo.is_worktree() {
+            // Use git command to get the common directory (main repo's .git)
+            let output = std::process::Command::new("git")
+                .current_dir(&current_dir)
+                .args(["rev-parse", "--git-common-dir"])
+                .output()?;
+
+            if !output.status.success() {
+                return Err(Error::Git(git2::Error::from_str("Failed to get git common dir")));
+            }
+
+            let common_dir_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let mut common_dir = PathBuf::from(common_dir_str);
+
+            // If the path is relative, make it absolute relative to current_dir
+            if common_dir.is_relative() {
+                common_dir = current_dir.join(common_dir);
+            }
+
+            // Canonicalize to resolve any symlinks or .. components
+            common_dir = common_dir.canonicalize()?;
+
+            // The main working directory is the parent of the common .git directory
+            let main_workdir = common_dir.parent()
+                .ok_or_else(|| Error::Git(git2::Error::from_str("Cannot find main repository")))?;
+
+            return Ok(main_workdir.to_path_buf());
+        }
+
         repo.workdir()
             .map(|p| p.to_path_buf())
             .ok_or(Error::NotAGitRepository)
@@ -145,6 +179,12 @@ impl Orchestrator {
                         if self.worktree_manager.branch_exists(specified_branch)? =>
                     {
                         // Existing branch - check it out directly
+                        // Get the proper base branch for merge target
+                        let base_branch = match &request.base {
+                            Some(b) => b.clone(),
+                            None => self.get_current_branch()?,
+                        };
+
                         match self
                             .worktree_manager
                             .checkout_existing(&id.0, specified_branch)
@@ -153,7 +193,7 @@ impl Orchestrator {
                                 break 'retry (
                                     id,
                                     specified_branch.clone(),
-                                    specified_branch.clone(),
+                                    base_branch,
                                     worktree_path,
                                 );
                             }
@@ -346,6 +386,7 @@ impl Orchestrator {
     pub async fn merge(
         &mut self,
         id: &str,
+        target: Option<String>,
         strategy: MergeStrategy,
         force: bool,
     ) -> Result<MergeResult> {
@@ -354,6 +395,12 @@ impl Orchestrator {
         if agent.status == AgentStatus::Running && !force {
             return Err(Error::AgentStillRunning(id.to_string()));
         }
+
+        // Determine target branch: explicit --target flag, or detect default branch
+        let target_branch = match target {
+            Some(t) => t,
+            None => crate::git::repository::default_branch(&self.repo_root)?,
+        };
 
         // Remove worktree BEFORE merge - git checkout fails if branch is checked out in a worktree
         // Ignore WorktreeNotFound (may have been manually removed), but propagate other errors
@@ -366,7 +413,7 @@ impl Orchestrator {
         let result = match crate::git::merge::merge_branch(
             &self.repo_root,
             &agent.branch,
-            &agent.base_branch,
+            &target_branch,
             strategy,
         ) {
             Ok(result) => result,

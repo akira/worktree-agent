@@ -90,6 +90,10 @@ enum Commands {
         /// Agent ID
         id: String,
 
+        /// Target branch to merge into (default: auto-detect main/master)
+        #[arg(long)]
+        target: Option<String>,
+
         /// Merge strategy
         #[arg(long, value_enum, default_value = "merge")]
         strategy: MergeStrategy,
@@ -230,9 +234,10 @@ async fn main() -> anyhow::Result<()> {
 
         Commands::Merge {
             id,
+            target,
             strategy,
             force,
-        } => cli::merge::run(id, strategy, force).await?,
+        } => cli::merge::run(id, target, strategy, force).await?,
 
         Commands::Pr {
             id,
