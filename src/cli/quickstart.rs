@@ -8,6 +8,13 @@ pub async fn run() -> Result<()> {
     println!("{title}\n");
     println!("{subtitle}\n");
 
+    // CLAUDE CODE INTEGRATION
+    println!("{}", "CLAUDE CODE INTEGRATION".yellow().bold());
+    print_command("wta claude-skill");
+    println!("            Install Claude Code skill for automatic agent orchestration");
+    println!("            After install: Claude will use wta for parallel tasks automatically");
+    println!("            Enables {} slash command in Claude\n", "/wta".cyan());
+
     // GETTING STARTED
     println!("{}", "GETTING STARTED".yellow().bold());
     print_command("wta launch --task \"Fix login bug\"");

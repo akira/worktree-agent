@@ -170,6 +170,9 @@ enum Commands {
     /// Show quickstart guide
     Quickstart,
 
+    /// Install Claude Code skill for wta orchestration
+    ClaudeSkill,
+
     /// Start the web dashboard
     Dashboard {
         /// Port to listen on
@@ -249,6 +252,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Init => cli::init::run().await?,
 
         Commands::Quickstart => cli::quickstart::run().await?,
+
+        Commands::ClaudeSkill => cli::claude_skill::run().await?,
 
         Commands::Dashboard { port, open } => {
             worktree_agent::web::run_server(Some(port), open).await?

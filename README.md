@@ -32,6 +32,27 @@ curl -fsSL https://raw.githubusercontent.com/akira/wta/main/install.sh | WTA_INS
 cargo install --path .
 ```
 
+## Claude Code Integration
+
+WTA includes a skill that enables Claude Code to automatically orchestrate multiple agents for parallel task execution.
+
+### Install the Claude Skill
+
+```bash
+wta claude-skill
+```
+
+This installs the skill to `~/.claude/skills/wta/SKILL.md`. After installation:
+1. Restart your Claude Code session
+2. Claude will automatically use wta for complex multi-part tasks
+3. You can also manually invoke with `/wta`
+
+**What the skill does:**
+- Enables Claude to decompose complex tasks into parallel workstreams
+- Automatically launches multiple agents in isolated worktrees
+- Monitors progress and coordinates merging of completed work
+- Makes Claude proactively suggest parallel execution when appropriate
+
 ## Usage
 
 ### Typical Workflow
