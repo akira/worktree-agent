@@ -2,3 +2,5 @@
 .worktrees/
 .worktree-agents/
 .idea/
+.beads/
+AGENTS.md

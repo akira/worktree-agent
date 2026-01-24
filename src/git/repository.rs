@@ -45,7 +45,9 @@ fn get_cached_default(repo_root: &Path) -> Result<String> {
         }
     }
 
-    Err(Error::Git(git2::Error::from_str("No cached default branch")))
+    Err(Error::Git(git2::Error::from_str(
+        "No cached default branch",
+    )))
 }
 
 /// Cache the default branch in git config
@@ -82,7 +84,9 @@ fn detect_from_remote(repo_root: &Path) -> Result<String> {
         }
     }
 
-    Err(Error::Git(git2::Error::from_str("Could not detect from remote")))
+    Err(Error::Git(git2::Error::from_str(
+        "Could not detect from remote",
+    )))
 }
 
 /// Infer default branch using local heuristics

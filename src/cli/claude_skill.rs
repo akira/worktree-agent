@@ -14,7 +14,10 @@ pub async fn run() -> Result<()> {
 
     // Check if skill already exists
     if skill_file.exists() {
-        println!("{}", "Claude wta skill is already installed!".green().bold());
+        println!(
+            "{}",
+            "Claude wta skill is already installed!".green().bold()
+        );
         println!("\nLocation: {}", skill_file.display().to_string().cyan());
         println!("\nTo reinstall, first remove the existing skill:");
         println!("  {}", format!("rm -rf {}", skill_dir.display()).yellow());
@@ -27,8 +30,14 @@ pub async fn run() -> Result<()> {
     // Write skill file
     fs::write(&skill_file, SKILL_CONTENT)?;
 
-    println!("{}", "✓ Claude wta skill installed successfully!".green().bold());
-    println!("\nInstalled to: {}", skill_file.display().to_string().cyan());
+    println!(
+        "{}",
+        "✓ Claude wta skill installed successfully!".green().bold()
+    );
+    println!(
+        "\nInstalled to: {}",
+        skill_file.display().to_string().cyan()
+    );
     println!("\n{}", "Next steps:".yellow().bold());
     println!("  1. Restart your Claude Code session");
     println!("  2. Use {} to access the skill", "/wta".cyan());

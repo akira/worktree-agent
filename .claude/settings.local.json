@@ -16,7 +16,11 @@
       "Bash(npm install)",
       "Bash(npm run build:*)",
       "Bash(git reset:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(cargo doc:*)",
+      "Bash(bd create:*)",
+      "Bash(bd list:*)",
+      "Bash(bd update:*)"
     ]
   }
 }

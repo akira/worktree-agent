@@ -130,7 +130,9 @@ impl Orchestrator {
                 .output()?;
 
             if !output.status.success() {
-                return Err(Error::Git(git2::Error::from_str("Failed to get git common dir")));
+                return Err(Error::Git(git2::Error::from_str(
+                    "Failed to get git common dir",
+                )));
             }
 
             let common_dir_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -145,7 +147,8 @@ impl Orchestrator {
             common_dir = common_dir.canonicalize()?;
 
             // The main working directory is the parent of the common .git directory
-            let main_workdir = common_dir.parent()
+            let main_workdir = common_dir
+                .parent()
                 .ok_or_else(|| Error::Git(git2::Error::from_str("Cannot find main repository")))?;
 
             return Ok(main_workdir.to_path_buf());
