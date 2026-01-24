@@ -53,6 +53,10 @@ enum Commands {
         #[arg(long)]
         dangerously_allow_all: bool,
 
+        /// Enable Edit and Read tool permissions for Claude (allows file editing)
+        #[arg(long)]
+        enable_edits: bool,
+
         /// Extra arguments to pass to the AI provider
         #[arg(last = true)]
         provider_args: Vec<String>,
@@ -201,6 +205,7 @@ async fn main() -> anyhow::Result<()> {
             provider,
             code,
             dangerously_allow_all,
+            enable_edits,
             provider_args,
         } => {
             let options = cli::launch::LaunchOptions {
@@ -211,6 +216,7 @@ async fn main() -> anyhow::Result<()> {
                 provider,
                 code,
                 dangerously_allow_all,
+                enable_edits,
                 provider_args,
             };
             cli::launch::run(options).await?

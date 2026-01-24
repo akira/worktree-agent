@@ -11,6 +11,7 @@ pub struct LaunchOptions {
     pub provider: Provider,
     pub code: bool,
     pub dangerously_allow_all: bool,
+    pub enable_edits: bool,
     pub provider_args: Vec<String>,
 }
 
@@ -23,6 +24,7 @@ pub async fn run(options: LaunchOptions) -> Result<()> {
         provider,
         code,
         dangerously_allow_all,
+        enable_edits,
         provider_args,
     } = options;
 
@@ -48,6 +50,15 @@ pub async fn run(options: LaunchOptions) -> Result<()> {
         match provider {
             Provider::Claude | Provider::Amp => {
                 provider_args.insert(0, "--dangerously-allow-all".to_string());
+            }
+            _ => {}
+        }
+    }
+
+    if enable_edits {
+        match provider {
+            Provider::Claude => {
+                provider_args.insert(0, "--enable-edits".to_string());
             }
             _ => {}
         }

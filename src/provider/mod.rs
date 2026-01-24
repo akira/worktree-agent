@@ -84,14 +84,24 @@ impl Provider {
         status_file: &Path,
         extra_args: &[String],
     ) -> String {
-        let extra_args_str = if extra_args.is_empty() {
-            String::new()
-        } else {
-            format!(" {}", extra_args.join(" "))
-        };
-
         // Check if dangerously-allow-all is in extra_args
         let dangerously_allow_all = extra_args.contains(&"--dangerously-allow-all".to_string());
+
+        // Check if edit permissions are requested
+        let enable_edits = extra_args.contains(&"--enable-edits".to_string());
+
+        // Filter out internal flags that shouldn't be passed to Claude CLI
+        let filtered_args: Vec<String> = extra_args
+            .iter()
+            .filter(|arg| *arg != "--enable-edits")
+            .cloned()
+            .collect();
+
+        let extra_args_str = if filtered_args.is_empty() {
+            String::new()
+        } else {
+            format!(" {}", filtered_args.join(" "))
+        };
 
         if dangerously_allow_all {
             // Skip permission restrictions entirely
@@ -103,7 +113,7 @@ impl Provider {
         }
 
         // Default allowed tools for safe operations
-        let default_allowed_tools = [
+        let mut default_allowed_tools = vec![
             "Bash(cargo check:*)",
             "Bash(cargo build:*)",
             "Bash(cargo test:*)",
@@ -118,6 +128,12 @@ impl Provider {
             "Bash(ls:*)",
             "Bash(pwd)",
         ];
+
+        // Add Edit and Read tools if requested
+        if enable_edits {
+            default_allowed_tools.insert(0, "Edit");
+            default_allowed_tools.insert(1, "Read");
+        }
 
         // Allow writing to the status directory so agent can report completion
         // Use directory wildcard pattern to ensure permission is granted
@@ -372,6 +388,23 @@ mod tests {
         // Should not contain allowedTools when dangerously-allow-all is used
         assert!(!cmd.contains("--allowedTools"));
         assert!(!cmd.contains("--permission-mode"));
+    }
+
+    #[test]
+    fn test_build_claude_command_enable_edits() {
+        let worktree = PathBuf::from("/tmp/worktree");
+        let prompt = PathBuf::from("/tmp/prompt.txt");
+        let status = PathBuf::from("/tmp/status/agent.json");
+        let extra_args = vec!["--enable-edits".to_string()];
+
+        let cmd = Provider::Claude.build_command(&worktree, &prompt, &status, &extra_args);
+
+        assert!(cmd.contains("claude --permission-mode acceptEdits"));
+        assert!(cmd.contains("--allowedTools"));
+        // Should contain Edit and Read tools
+        assert!(cmd.contains("Edit,Read"));
+        // Should NOT contain the internal --enable-edits flag in the final command
+        assert!(!cmd.contains("--enable-edits"));
     }
 
     #[test]
